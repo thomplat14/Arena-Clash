@@ -139,10 +139,40 @@
   .hpbar{ height:8px; border-radius:4px; background:rgba(255,255,255,0.15); overflow:hidden; margin-top:4px; }
   .hpfill{ height:100%; background:var(--accent3); transition:width 0.15s; }
 
-  #joystickZone{ position:absolute; left:0; bottom:0; width:45%; height:55%; pointer-events:auto; }
-  #fireZone{ position:absolute; right:0; bottom:0; width:45%; height:55%; pointer-events:auto; }
-  .stick-base{ position:absolute; width:100px; height:100px; border-radius:50%; background:rgba(255,255,255,0.08); border:2px solid rgba(255,255,255,0.25); display:none; }
-  .stick-nub{ position:absolute; width:44px; height:44px; border-radius:50%; background:rgba(255,204,0,0.85); box-shadow:0 0 12px rgba(255,204,0,0.6); top:28px; left:28px; }
+  #joystickZone{ position:absolute; left:0; bottom:0; width:52%; height:100%; pointer-events:auto; }
+  #fireZone{ position:absolute; right:0; bottom:0; width:52%; height:100%; pointer-events:auto; }
+  .stick-fixed{ position:absolute; bottom:30px; width:128px; height:128px; }
+  #moveStick{ left:26px; }
+  #aimStick{ right:26px; }
+  .stick-base{
+    position:absolute; width:128px; height:128px; border-radius:50%;
+    background:rgba(255,255,255,0.07); border:3px solid rgba(255,255,255,0.28);
+    transition:border-color 0.15s, background 0.15s;
+  }
+  .stick-base.live{ background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.5); }
+  #aimStick .stick-base.live{ border-color:rgba(255,85,102,0.75); }
+  #moveStick .stick-base.live{ border-color:rgba(61,220,132,0.75); }
+  .stick-nub{
+    position:absolute; width:56px; height:56px; border-radius:50%;
+    background:rgba(255,204,0,0.9); box-shadow:0 0 14px rgba(255,204,0,0.6);
+    top:36px; left:36px; transition:transform 0.05s linear;
+  }
+  #aimStick .stick-nub{ background:rgba(255,85,102,0.9); box-shadow:0 0 14px rgba(255,85,102,0.6); }
+  .stick-label{
+    position:absolute; bottom:-20px; width:100%; text-align:center;
+    font-size:10px; font-weight:800; letter-spacing:1px; color:#8ea3bd;
+  }
+
+  #rotateOverlay{
+    position:fixed; inset:0; z-index:9999; background:#0b1220;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; color:var(--ink); padding:24px;
+  }
+  #rotateOverlay.show{ display:flex; }
+  #rotateOverlay .icon{ font-size:56px; animation:rotateHint 1.6s ease-in-out infinite; margin-bottom:14px; }
+  #rotateOverlay h2{ margin:0 0 6px; font-size:20px; letter-spacing:0.5px; color:var(--accent); }
+  #rotateOverlay p{ margin:0; font-size:13px; color:#9db3cc; font-weight:600; }
+  @keyframes rotateHint{ 0%,100%{ transform:rotate(0deg); } 50%{ transform:rotate(90deg); } }
 
   #centerMsg{ position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
   #results{ background:rgba(10,16,26,0.94); border:2px solid var(--line); border-radius:18px; padding:24px 28px; pointer-events:auto; }
@@ -150,10 +180,15 @@
   #results p{ font-size:14px; margin-top:6px; color:#cfe0f5; font-weight:600; }
   #results .btnrow{ display:flex; gap:10px; margin-top:16px; justify-content:center; }
 
-  #hint{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%); font-size:11px; color:#8ea3bd; font-weight:600; }
 </style>
 </head>
 <body>
+
+<div id="rotateOverlay">
+  <div class="icon">📱</div>
+  <h2>Tourne ton appareil</h2>
+  <p>Arena Clash se joue à l'horizontale, pour une meilleure vue de l'arène et des contrôles plus confortables.</p>
+</div>
 
 <!-- ============ MODE SELECT ============ -->
 <div id="screen-mode" class="screen">
@@ -211,8 +246,18 @@
       <div class="hpbar"><div class="hpfill" id="hpFill" style="width:100%;"></div></div>
     </div>
 
-    <div id="joystickZone"><div class="stick-base" id="stickBase"><div class="stick-nub" id="stickNub"></div></div></div>
-    <div id="fireZone"></div>
+    <div id="joystickZone">
+      <div class="stick-fixed" id="moveStick">
+        <div class="stick-base" id="stickBase"><div class="stick-nub" id="stickNub"></div></div>
+        <div class="stick-label">DÉPLACEMENT</div>
+      </div>
+    </div>
+    <div id="fireZone">
+      <div class="stick-fixed" id="aimStick">
+        <div class="stick-base" id="fireBase"><div class="stick-nub" id="fireNub"></div></div>
+        <div class="stick-label">VISER &amp; TIRER</div>
+      </div>
+    </div>
 
     <div id="centerMsg">
       <div id="results" class="hidden">
@@ -224,7 +269,6 @@
         </div>
       </div>
     </div>
-    <div id="hint">Joystick gauche : déplacer · Zone droite : viser & tirer (glisser)</div>
   </div>
 </div>
 
@@ -456,51 +500,92 @@
   }
   function resetBall(){ ball.x = ARENA.w/2; ball.y = ARENA.h/2; ball.vx = 0; ball.vy = 0; }
 
-  // ================= INPUT =================
+  // ================= INPUT: dual fixed analog sticks =================
+  // Both sticks stay visually anchored in place (bottom-left / bottom-right).
+  // Touching anywhere in a stick's half of the screen grabs it; the nub
+  // follows the finger but is clamped to a fixed-radius circle around the
+  // anchor, giving precise, predictable, thumb-memorable control.
   let moveVec = {x:0,y:0};
+  let fireAim = {x:1,y:0};
+  let fireActive = false; // true only once the drag exceeds the precision dead zone
+
   const joyZone = document.getElementById('joystickZone');
   const stickBase = document.getElementById('stickBase');
   const stickNub = document.getElementById('stickNub');
-  let joyActive=false, joyId=null, joyCenter={x:0,y:0};
-  function joyStart(id,cx,cy){
-    joyActive=true; joyId=id; joyCenter={x:cx,y:cy};
-    stickBase.style.display='block';
-    stickBase.style.left=(cx-50)+'px'; stickBase.style.top=(cy-50)+'px';
-    stickNub.style.left='28px'; stickNub.style.top='28px';
-  }
-  function joyMove(cx,cy){
-    if(!joyActive) return;
-    let dx=cx-joyCenter.x, dy=cy-joyCenter.y;
-    let dist=Math.hypot(dx,dy), max=50;
-    if(dist>max){ dx=dx/dist*max; dy=dy/dist*max; }
-    stickNub.style.left=(28+dx)+'px'; stickNub.style.top=(28+dy)+'px';
-    moveVec.x=dx/max; moveVec.y=dy/max;
-  }
-  function joyEnd(){ joyActive=false; joyId=null; stickBase.style.display='none'; moveVec={x:0,y:0}; }
-  joyZone.addEventListener('touchstart', e=>{ e.preventDefault(); const t=e.changedTouches[0]; joyStart(t.identifier,t.clientX,t.clientY); }, {passive:false});
-  joyZone.addEventListener('touchmove', e=>{ e.preventDefault(); for(const t of e.changedTouches){ if(t.identifier===joyId) joyMove(t.clientX,t.clientY); } }, {passive:false});
-  joyZone.addEventListener('touchend', e=>{ for(const t of e.changedTouches){ if(t.identifier===joyId) joyEnd(); } });
-  let mouseJoyDown=false;
-  joyZone.addEventListener('mousedown', e=>{ mouseJoyDown=true; joyStart('mouse',e.clientX,e.clientY); });
-  window.addEventListener('mousemove', e=>{ if(mouseJoyDown) joyMove(e.clientX,e.clientY); });
-  window.addEventListener('mouseup', e=>{ if(mouseJoyDown){ mouseJoyDown=false; joyEnd(); } });
-
   const fireZone = document.getElementById('fireZone');
-  let fireActive=false, fireId=null, fireStart={x:0,y:0}, fireAim={x:1,y:0};
-  function fireBegin(id,cx,cy){ fireActive=true; fireId=id; fireStart={x:cx,y:cy}; fireAim={x:1,y:0}; }
-  function fireDrag(cx,cy){
-    if(!fireActive) return;
-    let dx=cx-fireStart.x, dy=cy-fireStart.y, d=Math.hypot(dx,dy);
-    if(d>6){ fireAim={x:dx/d,y:dy/d}; }
+  const fireBase = document.getElementById('fireBase');
+  const fireNub = document.getElementById('fireNub');
+
+  const STICK_MAX = 54;       // px radius the nub can travel from center
+  const FIRE_DEADZONE = 9;    // px — below this, aim direction is held but no shot fires (avoids stray taps)
+
+  function anchorOf(el){
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width/2, y: r.top + r.height/2 };
   }
-  function fireRelease(){ fireActive=false; fireId=null; }
-  fireZone.addEventListener('touchstart', e=>{ e.preventDefault(); const t=e.changedTouches[0]; fireBegin(t.identifier,t.clientX,t.clientY); }, {passive:false});
-  fireZone.addEventListener('touchmove', e=>{ e.preventDefault(); for(const t of e.changedTouches){ if(t.identifier===fireId) fireDrag(t.clientX,t.clientY); } }, {passive:false});
-  fireZone.addEventListener('touchend', e=>{ for(const t of e.changedTouches){ if(t.identifier===fireId) fireRelease(); } });
-  let mouseFireDown=false;
-  fireZone.addEventListener('mousedown', e=>{ mouseFireDown=true; fireBegin('mouse',e.clientX,e.clientY); });
-  window.addEventListener('mousemove', e=>{ if(mouseFireDown) fireDrag(e.clientX,e.clientY); });
-  window.addEventListener('mouseup', e=>{ if(mouseFireDown){ mouseFireDown=false; fireRelease(); } });
+
+  function makeStick(zoneEl, baseEl, nubEl, opts){
+    let active = false, id = null, anchor = {x:0,y:0};
+    function start(cx, cy, pid){
+      active = true; id = pid;
+      anchor = anchorOf(baseEl);
+      baseEl.classList.add('live');
+      update(cx, cy);
+    }
+    function update(cx, cy){
+      let dx = cx-anchor.x, dy = cy-anchor.y;
+      const dist = Math.hypot(dx,dy);
+      if(dist > STICK_MAX){ dx = dx/dist*STICK_MAX; dy = dy/dist*STICK_MAX; }
+      nubEl.style.transform = `translate(${dx}px, ${dy}px)`;
+      opts.onMove(dx, dy, dist);
+    }
+    function end(){
+      active = false; id = null;
+      baseEl.classList.remove('live');
+      nubEl.style.transform = 'translate(0px,0px)';
+      opts.onEnd();
+    }
+    zoneEl.addEventListener('touchstart', e=>{
+      e.preventDefault();
+      if(active) return;
+      const t = e.changedTouches[0];
+      start(t.clientX, t.clientY, t.identifier);
+    }, {passive:false});
+    zoneEl.addEventListener('touchmove', e=>{
+      e.preventDefault();
+      for(const t of e.changedTouches){ if(t.identifier===id) update(t.clientX, t.clientY); }
+    }, {passive:false});
+    zoneEl.addEventListener('touchend', e=>{
+      for(const t of e.changedTouches){ if(t.identifier===id) end(); }
+    });
+    zoneEl.addEventListener('touchcancel', e=>{
+      for(const t of e.changedTouches){ if(t.identifier===id) end(); }
+    });
+    let mouseDown=false;
+    zoneEl.addEventListener('mousedown', e=>{ mouseDown=true; start(e.clientX,e.clientY,'mouse'); });
+    window.addEventListener('mousemove', e=>{ if(mouseDown) update(e.clientX,e.clientY); });
+    window.addEventListener('mouseup', e=>{ if(mouseDown){ mouseDown=false; end(); } });
+  }
+
+  makeStick(joyZone, stickBase, stickNub, {
+    onMove(dx,dy,dist){
+      // analog: direction AND magnitude (0..1) both preserved for precise, proportional movement speed
+      moveVec.x = dx/STICK_MAX; moveVec.y = dy/STICK_MAX;
+    },
+    onEnd(){ moveVec = {x:0,y:0}; }
+  });
+
+  makeStick(fireZone, fireBase, fireNub, {
+    onMove(dx,dy,dist){
+      if(dist > FIRE_DEADZONE){
+        fireAim = {x: dx/dist, y: dy/dist};
+        fireActive = true;
+      } else {
+        fireActive = false; // held near center: aim direction kept, but no shot (precision guard)
+      }
+    },
+    onEnd(){ fireActive = false; }
+  });
 
   let keys = {};
   window.addEventListener('keydown', e=>keys[e.key.toLowerCase()]=true);
@@ -625,9 +710,11 @@
   function moveEntity(f, mx, my, dt){
     const len=Math.hypot(mx,my);
     if(len>0.01){
-      mx/=len; my/=len;
-      f.lastMoveX=mx; f.lastMoveY=my;
-      let nx=f.x+mx*f.speed*dt, ny=f.y+my*f.speed*dt;
+      const dirx=mx/len, diry=my/len;
+      const intensity = Math.min(1, len); // analog: light stick push = slower, precise steps; full push = full speed
+      f.lastMoveX=dirx; f.lastMoveY=diry;
+      const spd = f.speed*intensity;
+      let nx=f.x+dirx*spd*dt, ny=f.y+diry*spd*dt;
       if(!obstacleAt(nx,f.y,f.r)) f.x=nx;
       if(!obstacleAt(f.x,ny,f.r)) f.y=ny;
       f.x=Math.max(f.r,Math.min(ARENA.w-f.r,f.x));
@@ -644,6 +731,7 @@
   // ================= UPDATE =================
   function update(dt){
     if(!running || matchOver) return;
+    if(document.getElementById('rotateOverlay').classList.contains('show')) return; // paused while portrait
     timeLeft -= dt;
     if(timeLeft<=0){ timeLeft=0; endMatch(); }
     document.getElementById('timer').textContent = Math.floor(timeLeft/60)+':'+String(Math.floor(timeLeft%60)).padStart(2,'0');
@@ -926,6 +1014,17 @@
       }
     }
     if(mode==='ball') drawBall();
+    if(player.alive && fireActive){
+      const s = worldToScreen(player.x, player.y);
+      const ex = s.x + player.aimX*150, ey = s.y + player.aimY*150;
+      ctx.save();
+      ctx.setLineDash([6,7]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(s.x + player.aimX*player.r*1.5, s.y + player.aimY*player.r*1.5); ctx.lineTo(ex,ey); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
     for(const b of bullets){
       const s = worldToScreen(b.x,b.y);
       ctx.beginPath(); ctx.arc(s.x,s.y,b.r,0,Math.PI*2);
@@ -1035,6 +1134,15 @@
     screenGame.classList.add('hidden');
     screenMode.classList.remove('hidden');
   });
+
+  // ================= ORIENTATION: enforce landscape =================
+  function checkOrientation(){
+    const portrait = window.innerHeight > window.innerWidth;
+    document.getElementById('rotateOverlay').classList.toggle('show', portrait);
+  }
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', checkOrientation);
+  checkOrientation();
 
   // ================= PWA: SERVICE WORKER =================
   if('serviceWorker' in navigator){
