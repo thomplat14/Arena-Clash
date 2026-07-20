@@ -1,0 +1,15 @@
+{
+  "name": "Arena Clash",
+  "short_name": "Arena Clash",
+  "description": "Jeu de bagarre en arène 3 contre 3 avec plusieurs modes de jeu.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
