@@ -36,9 +36,28 @@ Cela ne fonctionne pas en ouvrant `index.html` directement depuis le disque (`fi
 
 ## Modes de jeu
 
-- **Chasse aux gemmes** — première équipe à 10 gemmes.
-- **Élimination** — pas de résurrection, il faut éliminer les 3 adversaires.
-- **Ballon Brawl** — pousser le ballon dans le but adverse, première équipe à 2 buts.
+- **Chasse aux gemmes** (3v3) — première équipe à 10 gemmes.
+- **Élimination** (3v3 ou 5v5) — pas de résurrection ; mode spectateur automatique une fois éliminé.
+- **Ballon Brawl** (3v3 ou 5v5) — pousser le ballon dans le but adverse, première équipe à 2 buts.
+- **Duel en ligne** (1 contre 1) — voir ci-dessous.
+- **Tournoi en ligne** (1 contre 1, plusieurs manches) — voir ci-dessous.
+
+## Duel et tournoi en ligne : comment ça marche
+
+Ces deux modes connectent deux joueurs directement entre eux (pair-à-pair, WebRTC), sans passer par un serveur de jeu à héberger :
+
+1. Un joueur clique sur **Créer une partie** : un code à 5 caractères s'affiche.
+2. Il envoie ce code à son adversaire par n'importe quel moyen (message, appel...).
+3. L'autre joueur clique sur **Rejoindre une partie** et saisit le code.
+4. Une fois connectés, les deux joueurs arrivent dans un **salon** : chacun voit le personnage choisi par l'autre et clique sur **Prêt !**. La partie démarre dès que les deux l'ont fait.
+5. En mode **Tournoi**, le duel se rejoue en plusieurs manches (le premier à 2 victoires remporte le tournoi) ; le score s'affiche dans le HUD et sur l'écran de fin de manche, avec un bouton **Manche suivante** jusqu'à la victoire finale.
+
+**Détails techniques et limites à connaître :**
+- La mise en relation initiale passe par le service public gratuit [PeerJS](https://peerjs.com/) (chargé depuis `cdnjs.cloudflare.com`) — nécessite donc une connexion Internet, y compris si le jeu est par ailleurs installé et utilisable hors ligne.
+- Une fois connectés, les données de la partie (positions, tirs, score) circulent **directement entre les deux appareils**, sans transiter par un serveur à moi.
+- Le joueur qui **crée** la partie fait autorité sur la simulation (déplacements, dégâts, collisions) ; l'autre reçoit l'état du jeu en temps réel. En cas de connexion instable, c'est donc surtout l'adversaire du créateur qui peut ressentir un léger décalage.
+- Si la connexion est coupée (dans le salon ou en cours de partie), un message de déconnexion s'affiche des deux côtés.
+- Ces modes sont prévus pour du 1 contre 1 uniquement. Un vrai 3v3/5v5 en ligne demanderait un serveur de jeu hébergé séparément (hors du cadre "fichiers statiques sur GitHub Pages").
 
 ## Contrôles
 
