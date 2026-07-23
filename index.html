@@ -1091,6 +1091,8 @@
       aimX: 1, aimY: 0,
       lastMoveX: 1, lastMoveY: 0,
       wanderAngle: Math.random()*Math.PI*2, wanderTimer: 0,
+      combatState: 'strafe',
+      vx: 0, vy: 0,
     };
   }
 
@@ -1376,6 +1378,33 @@
   }
 
   // ================= AI =================
+  // Looks a short distance ahead in the direction the AI wants to go; if
+  // that's blocked, steers sideways around the obstacle instead of walking
+  // straight into it. Applied as a final filter on whatever direction
+  // updateAI decided on, so every behavior (approach, retreat, strafe,
+  // wandering...) automatically avoids obstacles instead of just reacting
+  // after already bumping into one.
+  function avoidObstacles(f, dirx, diry){
+    const len = Math.hypot(dirx,diry);
+    if(len<0.01) return {x:dirx, y:diry};
+    dirx/=len; diry/=len;
+    const lookAhead = f.r + 34;
+    const aheadX = f.x + dirx*lookAhead, aheadY = f.y + diry*lookAhead;
+    if(!obstacleAt(aheadX, aheadY, f.r)) return {x:dirx, y:diry};
+    const perpX=-diry, perpY=dirx;
+    const okPos = !obstacleAt(f.x+perpX*lookAhead, f.y+perpY*lookAhead, f.r);
+    const okNeg = !obstacleAt(f.x-perpX*lookAhead, f.y-perpY*lookAhead, f.r);
+    let steerX, steerY;
+    if(okPos && !okNeg){ steerX=perpX; steerY=perpY; }
+    else if(okNeg && !okPos){ steerX=-perpX; steerY=-perpY; }
+    else { const sign = Math.sin(f.wanderAngle)>=0?1:-1; steerX=perpX*sign; steerY=perpY*sign; }
+    // mostly steer around the obstacle, keep a little forward intent so the
+    // fighter still makes progress toward where it actually wants to go
+    const bx = dirx*0.3 + steerX*0.9, by = diry*0.3 + steerY*0.9;
+    const bl = Math.hypot(bx,by)||1;
+    return {x:bx/bl, y:by/bl};
+  }
+
   function updateAI(f, dt){
     if(!f.alive) return;
     const foeList = f.team===TEAM_ME ? enemies : allies;
@@ -1428,10 +1457,28 @@
         // No distance condition here on purpose: gating this by distance
         // caused bots to flicker between fleeing and re-engaging right at
         // the boundary, producing a jittery, broken-looking shuffle in place.
+        f.combatState = 'flee';
+      } else {
+        // Hysteresis: only switch state once comfortably past a threshold,
+        // instead of recomputing straight from the raw distance every frame
+        // (which flickered rapidly whenever the distance hovered right at a
+        // boundary, looking like an AI stuck flip-flopping back and forth).
+        if(f.combatState==='flee') f.combatState='strafe';
+        if(f.combatState==='approach'){
+          if(dist<=preferredDist+20) f.combatState='strafe';
+        } else if(f.combatState==='retreat'){
+          if(dist>=preferredDist-10) f.combatState='strafe';
+        } else {
+          if(dist>preferredDist+60) f.combatState='approach';
+          else if(dist<preferredDist-40) f.combatState='retreat';
+        }
+      }
+
+      if(f.combatState==='flee'){
         moveX=-dirx; moveY=-diry;
-      } else if(dist>preferredDist+60){
+      } else if(f.combatState==='approach'){
         moveX=dirx; moveY=diry;
-      } else if(dist<preferredDist-40){
+      } else if(f.combatState==='retreat'){
         moveX=-dirx; moveY=-diry;
       } else {
         // Erratic strafing (direction flips over time) instead of one fixed
@@ -1461,16 +1508,33 @@
       if(f.wanderTimer<=0){ f.wanderAngle=Math.random()*Math.PI*2; f.wanderTimer=1.5; }
       moveX=Math.cos(f.wanderAngle); moveY=Math.sin(f.wanderAngle);
     }
+    if(moveX*moveX+moveY*moveY > 0.0001){
+      const avoided = avoidObstacles(f, moveX, moveY);
+      moveX = avoided.x; moveY = avoided.y;
+    }
     moveEntity(f, moveX, moveY, dt);
   }
   function moveEntity(f, mx, my, dt){
     const len=Math.hypot(mx,my);
+    let desiredVx=0, desiredVy=0;
     if(len>0.01){
       const dirx=mx/len, diry=my/len;
       const intensity = Math.min(1, len); // analog: light stick push = slower, precise steps; full push = full speed
       f.lastMoveX=dirx; f.lastMoveY=diry;
-      const spd = f.speed*intensity;
-      let nx=f.x+dirx*spd*dt, ny=f.y+diry*spd*dt;
+      desiredVx = dirx*f.speed*intensity;
+      desiredVy = diry*f.speed*intensity;
+    }
+    // Ease actual velocity toward the desired one instead of snapping to it
+    // instantly — smooths out AI state changes (approach/retreat/strafe
+    // flips) and stick direction changes into a natural accel/decel curve
+    // rather than an abrupt jump, without meaningfully hurting responsiveness.
+    if(f.vx===undefined){ f.vx=0; f.vy=0; }
+    const ease = 1 - Math.exp(-dt*13);
+    f.vx += (desiredVx-f.vx)*ease;
+    f.vy += (desiredVy-f.vy)*ease;
+
+    if(Math.hypot(f.vx,f.vy) > 0.5){
+      let nx=f.x+f.vx*dt, ny=f.y+f.vy*dt;
       let movedX=false, movedY=false;
       if(!obstacleAt(nx,f.y,f.r)){ f.x=nx; movedX=true; }
       if(!obstacleAt(f.x,ny,f.r)){ f.y=ny; movedY=true; }
@@ -1478,11 +1542,13 @@
         // Fully blocked (e.g. walking straight into a rock): slide sideways
         // along the wall instead of freezing in place, which used to look
         // like the AI had completely locked up against obstacles.
-        const perpX=-diry, perpY=dirx;
+        const vlen = Math.hypot(f.vx,f.vy)||1;
+        const perpX=-f.vy/vlen, perpY=f.vx/vlen;
         const slideSign = Math.sin(f.wanderAngle) >= 0 ? 1 : -1;
-        const sx = f.x + perpX*slideSign*spd*dt, sy = f.y + perpY*slideSign*spd*dt;
+        const sx = f.x + perpX*slideSign*vlen*dt, sy = f.y + perpY*slideSign*vlen*dt;
         if(!obstacleAt(sx,f.y,f.r)) f.x=sx;
         if(!obstacleAt(f.x,sy,f.r)) f.y=sy;
+        f.vx*=0.6; f.vy*=0.6; // bleed off speed against the wall instead of holding full velocity into it
       }
       f.x=Math.max(f.r,Math.min(ARENA.w-f.r,f.x));
       f.y=Math.max(f.r,Math.min(ARENA.h-f.r,f.y));
