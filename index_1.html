@@ -1,0 +1,2724 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ARENA CLASH</title>
+<meta name="description" content="Jeu de bagarre en arène 3 contre 3 avec plusieurs modes de jeu.">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Arena Clash">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#0b1220;
+    --accent:#ffcc00;
+    --accent2:#ff5566;
+    --accent3:#3ddc84;
+    --ink:#eaf2ff;
+    --panel:#111c2b;
+    --panel2:#182740;
+    --line:#26394d;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:var(--bg-deep);
+    font-family:'Segoe UI', system-ui, sans-serif;
+    color:var(--ink);
+    touch-action:none;
+  }
+  .screen{
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    overflow-y:auto;
+  }
+  .hidden{display:none !important;}
+
+  /* ---- Mode select ---- */
+  #screen-mode{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 20%, #1c2b3a, #0b1220 70%);
+    padding:20px;
+  }
+  /* ---- Login / pseudo ---- */
+  #screen-login{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 20%, #1c2b3a, #0b1220 70%);
+    padding:20px;
+  }
+  #screen-login .online-panel{ width:100%; max-width:360px; }
+  .title-logo{
+    font-size:38px; font-weight:900; letter-spacing:2px; color:var(--accent);
+    text-shadow:0 0 20px rgba(255,204,0,0.5), 0 4px 0 #7a5b00;
+    margin-bottom:6px; text-align:center;
+  }
+  .subtitle{ font-size:13px; color:#9db3cc; margin-bottom:26px; font-weight:600; text-align:center;}
+  .mode-grid{
+    display:flex; gap:16px; flex-wrap:wrap; justify-content:center; max-width:900px;
+  }
+  .mode-card{
+    width:230px; background:var(--panel); border:2px solid var(--line); border-radius:16px;
+    padding:18px; text-align:center; cursor:pointer; transition:transform 0.15s, border-color 0.15s;
+  }
+  .mode-card:active{ transform:scale(0.97); }
+  .mode-card .icon{ font-size:40px; margin-bottom:8px; }
+  .mode-card h3{ margin:0 0 6px; font-size:17px; letter-spacing:0.5px; }
+  .mode-card p{ margin:0; font-size:12px; color:#9db3cc; line-height:1.5; }
+  .mode-card.gem{ border-color:#2e7a55; }
+  .mode-card.gem:hover, .mode-card.gem:active{ border-color:var(--accent3); }
+  .mode-card.knockout{ border-color:#7a2e3a; }
+  .mode-card.knockout:hover, .mode-card.knockout:active{ border-color:var(--accent2); }
+  .mode-card.ball{ border-color:#7a6a2e; }
+  .mode-card.ball:hover, .mode-card.ball:active{ border-color:var(--accent); }
+  .mode-card.duel{ border-color:#2e5a7a; }
+  .mode-card.duel:hover, .mode-card.duel:active{ border-color:#54c7ff; }
+
+  /* ---- Character select ---- */
+  #screen-character{
+    display:flex; flex-direction:column; align-items:center;
+    background:radial-gradient(circle at 50% 10%, #1c2b3a, #0b1220 70%);
+    padding:18px 14px 100px;
+  }
+  #screen-character h2{
+    font-size:22px; letter-spacing:1px; color:var(--accent); margin:6px 0 4px;
+  }
+  #screen-character .subtitle{ margin-bottom:16px; }
+  .char-grid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;
+    width:100%; max-width:520px;
+  }
+  .char-card{
+    background:var(--panel); border:2px solid var(--line); border-radius:14px;
+    padding:10px 6px; text-align:center; cursor:pointer; position:relative;
+  }
+  .char-card.selected{ border-color:var(--accent); box-shadow:0 0 14px rgba(255,204,0,0.35); }
+  .char-card.locked{ cursor:default; opacity:0.55; filter:grayscale(0.6); }
+  .char-card canvas{ display:block; margin:0 auto; }
+  .char-card .cname{ font-size:12px; font-weight:800; margin-top:4px; }
+  .char-card .cattack{ font-size:9.5px; color:#8ea3bd; font-weight:600; }
+  .char-card .cpoints{ font-size:9.5px; color:var(--accent); font-weight:800; margin-top:2px; }
+
+  #skinPanel{
+    width:100%; max-width:520px; margin-top:18px; background:var(--panel2);
+    border:2px solid var(--line); border-radius:14px; padding:14px;
+  }
+  #skinPanel h4{ margin:0 0 10px; font-size:13px; color:#cfe0f5; letter-spacing:0.5px; }
+  .skin-row{ display:flex; gap:10px; }
+  .skin-card{
+    flex:1; background:var(--panel); border:2px solid var(--line); border-radius:12px;
+    padding:8px; text-align:center; cursor:pointer; position:relative;
+  }
+  .skin-card.selected{ border-color:var(--accent3); }
+  .skin-card.legendary{ border-color:rgba(255,204,0,0.5); box-shadow:0 0 10px rgba(255,204,0,0.25); }
+  .skin-card.legendary.selected{ border-color:var(--accent); box-shadow:0 0 14px rgba(255,204,0,0.5); }
+  .skin-card.mythic{ border-color:rgba(255,79,216,0.6); box-shadow:0 0 12px rgba(255,79,216,0.35); animation:mythicPulse 2s ease-in-out infinite; }
+  .skin-card.mythic.selected{ border-color:#ff4fd8; box-shadow:0 0 18px rgba(255,79,216,0.6); }
+  @keyframes mythicPulse{ 0%,100%{ box-shadow:0 0 10px rgba(255,79,216,0.3); } 50%{ box-shadow:0 0 18px rgba(255,79,216,0.6); } }
+  .slegend{ font-size:8px; font-weight:900; color:var(--accent); margin-top:3px; letter-spacing:0.3px; }
+  .skin-card.locked{ cursor:default; opacity:0.55; filter:grayscale(0.6); }
+  .slock{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.55); border-radius:12px; font-size:9px; font-weight:800;
+    color:#fff; text-align:center; padding:4px;
+  }
+  .skin-card canvas{ display:block; margin:0 auto; }
+
+  /* ---- Rewards screen ---- */
+  #screen-rewards{
+    display:flex; flex-direction:column; align-items:center;
+    background:radial-gradient(circle at 50% 10%, #1c2b3a, #0b1220 70%);
+    padding:20px 14px 100px;
+  }
+  #rewardsGrid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; width:100%; max-width:640px; margin-top:16px; }
+  .reward-card{
+    background:var(--panel); border:2px solid var(--line); border-radius:14px; padding:12px 8px; text-align:center;
+  }
+  .reward-card.done{ border-color:var(--accent); box-shadow:0 0 12px rgba(255,204,0,0.3); }
+  .reward-card canvas{ display:block; margin:0 auto; }
+  .reward-threshold{ font-size:11px; font-weight:800; color:var(--accent); margin-top:4px; }
+  .reward-name{ font-size:11px; font-weight:700; color:#cfe0f5; margin-top:2px; }
+  .reward-progress-bar{ height:6px; border-radius:3px; background:rgba(255,255,255,0.1); overflow:hidden; margin-top:6px; }
+  .reward-progress-fill{ height:100%; background:var(--accent3); }
+  .reward-status{ font-size:9.5px; font-weight:800; margin-top:4px; }
+  .reward-status.locked{ color:#8ea3bd; }
+  .reward-status.unlocked{ color:var(--accent3); }
+  .skin-card .sname{ font-size:11px; font-weight:700; margin-top:4px; }
+
+  #avatarPanel{
+    width:100%; max-width:520px; margin-top:14px; background:var(--panel2);
+    border:2px solid var(--line); border-radius:14px; padding:14px;
+  }
+  #avatarPanel h4{ margin:0 0 10px; font-size:13px; color:#cfe0f5; letter-spacing:0.5px; }
+  .avatar-grid{ display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; }
+  .avatar-swatch{
+    width:100%; aspect-ratio:1; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:20px; cursor:pointer; border:3px solid transparent; box-shadow:0 3px 8px rgba(0,0,0,0.35);
+  }
+  .avatar-swatch.selected{ border-color:var(--accent); transform:scale(1.08); }
+  .avatar-badge{
+    width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:18px; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.35);
+  }
+
+  /* ---- Online lobby ---- */
+  #screen-online{
+    display:flex; flex-direction:column; align-items:center;
+    background:radial-gradient(circle at 50% 10%, #1c2b3a, #0b1220 70%);
+    padding:18px 14px 100px;
+  }
+  .online-panel{
+    width:100%; max-width:420px; background:var(--panel2); border:2px solid var(--line);
+    border-radius:14px; padding:22px; text-align:center; margin-top:6px;
+  }
+  .online-status{ font-size:13px; font-weight:700; color:#cfe0f5; margin:0 0 4px; }
+  .online-hint{ font-size:12px; color:#8ea3bd; font-weight:600; margin:10px 0 0; }
+  #roomCodeValue{
+    font-size:34px; font-weight:900; letter-spacing:6px; color:var(--accent);
+    background:var(--panel); border:2px dashed var(--line); border-radius:12px;
+    padding:14px 10px; margin:8px 0 14px;
+  }
+  #joinCodeInput{
+    width:100%; font-size:26px; font-weight:900; letter-spacing:6px; text-align:center;
+    text-transform:uppercase; background:var(--panel); border:2px solid var(--line);
+    border-radius:12px; color:var(--ink); padding:12px; margin:10px 0; outline:none;
+  }
+  #joinCodeInput:focus{ border-color:#54c7ff; }
+  .spinner{
+    width:26px; height:26px; margin:14px auto 0; border-radius:50%;
+    border:3px solid rgba(255,255,255,0.15); border-top-color:var(--accent);
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ---- Login / profile ---- */
+  .field-label{ display:block; text-align:left; font-size:11px; font-weight:800; color:#8ea3bd; margin:12px 0 4px; letter-spacing:0.5px; }
+  #loginCreatePanel input, #loginReturnPanel input{
+    width:100%; font-size:16px; font-weight:700; background:var(--panel); border:2px solid var(--line);
+    border-radius:10px; color:var(--ink); padding:11px 12px; outline:none;
+  }
+  #loginCreatePanel input:focus, #loginReturnPanel input:focus{ border-color:#54c7ff; }
+  .link-btn{ color:#54c7ff; font-weight:800; cursor:pointer; text-decoration:underline; }
+  #profileBar{
+    position:absolute; top:14px; right:14px;
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel); border:2px solid var(--line); border-radius:20px; padding:5px 12px 5px 5px;
+    font-size:12px; font-weight:700; color:#cfe0f5;
+  }
+  #pointsBar{
+    position:absolute; top:14px; left:14px; cursor:pointer;
+    display:flex; align-items:center; gap:6px;
+    background:var(--panel); border:2px solid var(--line); border-radius:20px; padding:6px 14px;
+    font-size:12px; font-weight:800; color:var(--accent);
+  }
+  #profileBarSwitch{ margin-left:4px; font-size:11px; }
+
+  .mode-card.selected{ border-color:var(--accent); box-shadow:0 0 14px rgba(255,204,0,0.35); }
+
+  #homeCharPreview{
+    position:relative; width:240px; margin-top:10px; background:var(--panel); border:2px solid var(--line);
+    border-radius:22px; padding:18px 16px 14px; text-align:center; cursor:pointer;
+  }
+  #homeCharPreview:active{ transform:scale(0.97); }
+  #homeCharPreview canvas{ display:block; margin:0 auto; }
+  #homeCharAvatar{
+    position:absolute; top:10px; right:10px; width:38px; height:38px; font-size:18px;
+    border:2px solid var(--panel);
+  }
+  .home-char-name{ font-size:19px; font-weight:900; margin-top:6px; }
+  .home-char-points{ font-size:12px; font-weight:800; color:var(--accent); margin-top:2px; }
+  .home-char-hint{ font-size:11px; color:#8ea3bd; font-weight:600; margin-top:4px; }
+
+  #homeRightPanel{
+    position:absolute; right:20px; bottom:20px;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  #homePlayBtn{ padding:14px 40px; font-size:19px; }
+  #homeModePicker{
+    background:var(--panel); border:2px solid var(--line); border-radius:14px;
+    padding:10px 12px; text-align:center;
+  }
+  #homeModeLabel{ font-size:11px; font-weight:800; color:var(--accent); margin-bottom:8px; letter-spacing:0.3px; }
+  #homeModeIcons{ display:flex; gap:6px; }
+  .mode-icon-btn{
+    width:38px; height:38px; border-radius:10px; background:var(--panel2); border:2px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer;
+  }
+  .mode-icon-btn.selected{ border-color:var(--accent); box-shadow:0 0 10px rgba(255,204,0,0.4); }
+
+  /* ---- Online salon (waiting room) ---- */
+  #screen-salon{
+    display:flex; flex-direction:column; align-items:center;
+    background:radial-gradient(circle at 50% 10%, #1c2b3a, #0b1220 70%);
+    padding:24px 14px 100px;
+  }
+  .salon-row{ display:flex; align-items:center; gap:18px; margin-top:22px; }
+  .salon-card{
+    width:130px; background:var(--panel); border:2px solid var(--line); border-radius:14px;
+    padding:14px 8px; text-align:center;
+  }
+  .salon-card canvas{ display:block; margin:0 auto; }
+  .salon-name{ font-size:12px; font-weight:800; margin-top:6px; letter-spacing:0.5px; }
+  .salon-ready{ font-size:11px; font-weight:700; color:#8ea3bd; margin-top:6px; }
+  .salon-ready.is-ready{ color:var(--accent3); }
+  .salon-vs{ font-size:20px; font-weight:900; color:var(--accent); }
+  #salonReadyBtn{ margin-top:26px; }
+  #salonReadyBtn:disabled{ opacity:0.7; }
+  #salonScoreLine{ margin-top:14px; font-weight:800; color:var(--accent); }
+
+  .bottom-bar{
+    position:fixed; bottom:0; left:0; width:100%;
+    display:flex; gap:10px; justify-content:center; padding:14px;
+    background:linear-gradient(to top, rgba(11,18,32,0.95), transparent);
+  }
+  .btn{
+    pointer-events:auto; border:none; border-radius:14px; font-weight:900; letter-spacing:0.5px;
+    box-shadow:0 6px 0 rgba(0,0,0,0.35), 0 8px 18px rgba(0,0,0,0.3);
+  }
+  .btn:active{ transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,0.35); }
+  .btn-primary{ background:linear-gradient(180deg, #ffdd44, #ffaa00); color:#3a2600; padding:14px 34px; font-size:17px; }
+  .btn-secondary{ background:linear-gradient(180deg, #2c4058, #1a2940); color:#dbe8f7; padding:14px 24px; font-size:14px; border:2px solid var(--line); box-shadow:0 6px 0 #0d1420; }
+
+  /* ---- Game screen ---- */
+  #screen-game{ overflow:hidden; }
+  #gameCanvas{ display:block; position:absolute; top:0; left:0; width:100%; height:100%; background:#274a2e; }
+  #hud{ position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+  #debugBanner{
+    position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:200;
+    pointer-events:auto; max-width:92%; background:rgba(120,20,20,0.95); border:2px solid #ff5566;
+    border-radius:12px; padding:10px 14px; text-align:center;
+  }
+  #debugBannerText{ font-size:11px; font-weight:700; color:#fff; word-break:break-word; max-height:80px; overflow-y:auto; }
+  #topbar{
+    position:absolute; top:0; left:0; width:100%; padding:10px 14px;
+    display:flex; justify-content:space-between; align-items:center;
+    background:linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
+  }
+  #scoreRow{ display:flex; gap:8px; align-items:center; }
+  .badge{ font-size:12px; font-weight:800; padding:3px 9px; border-radius:10px; white-space:nowrap; }
+  .badge.us{background:rgba(61,220,132,0.2); color:var(--accent3); border:1px solid var(--accent3);}
+  .badge.them{background:rgba(255,85,102,0.2); color:var(--accent2); border:1px solid var(--accent2);}
+  #timer{ font-weight:900; font-size:20px; background:var(--panel); padding:4px 14px; border-radius:20px; border:2px solid var(--line); }
+  #gemRow{ font-weight:900; font-size:18px; display:flex; align-items:center; gap:6px; text-shadow:0 2px 4px rgba(0,0,0,0.6); }
+  #gemRow .diamond{ width:13px;height:13px; background:var(--accent3); transform:rotate(45deg); border-radius:2px; box-shadow:0 0 8px var(--accent3); }
+
+  #healthWrap{ position:absolute; top:56px; left:14px; width:172px; }
+  .hp-row{ display:flex; align-items:center; gap:8px; }
+  .hpbar{ height:8px; border-radius:4px; background:rgba(255,255,255,0.15); overflow:hidden; margin-top:4px; }
+  .hpfill{ height:100%; background:var(--accent3); transition:width 0.15s; }
+
+  #spectatorBar{
+    position:absolute; top:56px; left:50%; transform:translateX(-50%);
+    pointer-events:auto; display:flex; align-items:center; gap:10px;
+    background:rgba(10,16,26,0.85); border:2px solid var(--accent2); border-radius:20px;
+    padding:6px 10px; font-size:12px; font-weight:800; letter-spacing:0.5px; color:var(--accent2);
+    white-space:nowrap;
+  }
+  .spectate-btn{
+    pointer-events:auto; border:none; background:rgba(255,85,102,0.25); color:#fff;
+    width:26px; height:26px; border-radius:50%; font-weight:900; font-size:13px;
+  }
+
+  #joystickZone{ position:absolute; left:0; bottom:0; width:52%; height:100%; pointer-events:auto; }
+  #fireZone{ position:absolute; right:0; bottom:0; width:52%; height:100%; pointer-events:auto; }
+  .stick-fixed{ position:absolute; bottom:30px; width:128px; height:128px; }
+  #moveStick{ left:26px; }
+  #aimStick{ right:26px; }
+  .stick-base{
+    position:absolute; width:128px; height:128px; border-radius:50%;
+    background:rgba(255,255,255,0.07); border:3px solid rgba(255,255,255,0.28);
+    transition:border-color 0.15s, background 0.15s;
+  }
+  .stick-base.live{ background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.5); }
+  #aimStick .stick-base.live{ border-color:rgba(255,85,102,0.75); }
+  #moveStick .stick-base.live{ border-color:rgba(61,220,132,0.75); }
+  .stick-nub{
+    position:absolute; width:56px; height:56px; border-radius:50%;
+    background:rgba(255,204,0,0.9); box-shadow:0 0 14px rgba(255,204,0,0.6);
+    top:36px; left:36px; transition:transform 0.05s linear;
+  }
+  #aimStick .stick-nub{ background:rgba(255,85,102,0.9); box-shadow:0 0 14px rgba(255,85,102,0.6); }
+  .stick-label{
+    position:absolute; bottom:-20px; width:100%; text-align:center;
+    font-size:10px; font-weight:800; letter-spacing:1px; color:#8ea3bd;
+  }
+
+  #rotateOverlay{
+    position:fixed; inset:0; z-index:9999; background:#0b1220;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; color:var(--ink); padding:24px;
+  }
+  #rotateOverlay.show{ display:flex; }
+  #rotateOverlay .icon{ font-size:56px; animation:rotateHint 1.6s ease-in-out infinite; margin-bottom:14px; }
+  #rotateOverlay h2{ margin:0 0 6px; font-size:20px; letter-spacing:0.5px; color:var(--accent); }
+  #rotateOverlay p{ margin:0; font-size:13px; color:#9db3cc; font-weight:600; }
+  @keyframes rotateHint{ 0%,100%{ transform:rotate(0deg); } 50%{ transform:rotate(90deg); } }
+
+  #centerMsg{ position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
+  #results{ background:rgba(10,16,26,0.94); border:2px solid var(--line); border-radius:18px; padding:24px 28px; pointer-events:auto; }
+  #results h1{ font-size:36px; margin:0; font-weight:900; letter-spacing:2px; }
+  #results p{ font-size:14px; margin-top:6px; color:#cfe0f5; font-weight:600; }
+  #results .btnrow{ display:flex; gap:10px; margin-top:16px; justify-content:center; }
+
+</style>
+</head>
+<body>
+
+<div id="rotateOverlay">
+  <div class="icon">📱</div>
+  <h2>Tourne ton appareil</h2>
+  <p>Arena Clash se joue à l'horizontale, pour une meilleure vue de l'arène et des contrôles plus confortables.</p>
+</div>
+
+<!-- ============ LOGIN / PROFILE ============ -->
+<div id="screen-login" class="screen">
+  <div class="title-logo">ARENA CLASH</div>
+  <div class="subtitle" id="loginSubtitle">Choisis ton pseudo pour commencer</div>
+
+  <div id="loginCreatePanel" class="online-panel">
+    <label class="field-label" for="createPseudoInput">Pseudo</label>
+    <input type="text" id="createPseudoInput" maxlength="14" placeholder="Ton pseudo" autocomplete="off">
+    <p class="online-status" id="createProfileStatus"></p>
+    <button class="btn btn-primary" id="createProfileBtn" style="margin-top:10px;">VALIDER</button>
+    <p class="online-hint">Enregistré sur cet appareil. Si ce pseudo a déjà joué ici, sa progression sera retrouvée automatiquement.</p>
+  </div>
+
+  <div id="loginReturnPanel" class="online-panel hidden">
+    <p class="online-status" id="returnPseudoLabel" style="font-size:20px;font-weight:900;color:var(--ink);">—</p>
+    <button class="btn btn-primary" id="loginBtn" style="margin-top:10px;">CONTINUER</button>
+    <p class="online-hint">Pas toi ? <span class="link-btn" id="resetProfileBtn">Changer de pseudo</span></p>
+  </div>
+</div>
+
+<!-- ============ MODE SELECT ============ -->
+<div id="screen-mode" class="screen hidden">
+  <div id="pointsBar" role="button">
+    <span>🏆</span>
+    <span id="profileBarPoints">0 pts</span>
+    <span class="link-btn" style="margin-left:2px;">récompenses</span>
+  </div>
+  <div id="profileBar">
+    <div class="avatar-badge" id="profileBarAvatar" style="width:28px;height:28px;font-size:13px;"></div>
+    <span id="profileBarName">—</span>
+    <span class="link-btn" id="profileBarSwitch">changer de profil</span>
+  </div>
+  <div class="title-logo">ARENA CLASH</div>
+  <div class="subtitle">Touche ton personnage pour le changer</div>
+
+  <div id="homeCharPreview">
+    <canvas id="homeCharCanvas" width="200" height="200"></canvas>
+    <div class="avatar-badge" id="homeCharAvatar"></div>
+    <div class="home-char-name" id="homeCharName">Pyra</div>
+    <div class="home-char-points" id="homeCharPoints">0 pts</div>
+    <div class="home-char-hint">Toucher pour changer de personnage ou de skin</div>
+  </div>
+
+  <div id="homeRightPanel">
+    <div id="homeModePicker">
+      <div id="homeModeLabel">—</div>
+      <div id="homeModeIcons"></div>
+    </div>
+    <button class="btn btn-primary" id="homePlayBtn">JOUER</button>
+  </div>
+</div>
+
+<!-- ============ REWARDS ============ -->
+<div id="screen-rewards" class="screen hidden">
+  <div class="title-logo" style="font-size:28px;">🏆 RÉCOMPENSES</div>
+  <div class="subtitle" id="rewardsSubtitle">Tous les 100 points cumulés, débloque un skin légendaire</div>
+  <div id="rewardsGrid"></div>
+  <div class="bottom-bar">
+    <button class="btn btn-secondary" id="rewardsBackBtn">RETOUR</button>
+  </div>
+</div>
+
+<!-- ============ TEAM SIZE SELECT ============ -->
+<div id="screen-teamsize" class="screen hidden">
+  <div class="title-logo" id="teamsizeTitle" style="font-size:28px;">CHOISIS UN FORMAT</div>
+  <div class="subtitle">Combien de joueurs par équipe ?</div>
+  <div class="mode-grid">
+    <div class="mode-card gem" data-teamsize="3">
+      <div class="icon">🧑‍🤝‍🧑</div>
+      <h3>3 CONTRE 3</h3>
+      <p>Format classique, arène resserrée.</p>
+    </div>
+    <div class="mode-card ball" data-teamsize="5">
+      <div class="icon">👥</div>
+      <h3>5 CONTRE 5</h3>
+      <p>Plus de monde, plus de chaos.</p>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="btn btn-secondary" id="backToModeFromSizeBtn">RETOUR</button>
+  </div>
+</div>
+
+<!-- ============ CHARACTER SELECT ============ -->
+<div id="screen-character" class="screen hidden">
+  <h2>CHOISIS TON PERSONNAGE</h2>
+  <div class="subtitle" id="modeReminder">Touche un personnage pour le choisir</div>
+  <div class="char-grid" id="charGrid"></div>
+  <div id="skinPanel">
+    <h4 id="skinTitle">SKINS</h4>
+    <div class="skin-row" id="skinRow"></div>
+  </div>
+  <div id="avatarPanel">
+    <h4>PHOTO DE PROFIL</h4>
+    <div class="avatar-grid" id="avatarGrid"></div>
+  </div>
+  <div class="bottom-bar">
+    <button class="btn btn-secondary" id="backToModeBtn">RETOUR</button>
+    <button class="btn btn-primary" id="playBtn">VALIDER</button>
+  </div>
+</div>
+
+<!-- ============ ONLINE LOBBY ============ -->
+<div id="screen-online" class="screen hidden">
+  <div class="title-logo" id="onlineTitle" style="font-size:28px;">DUEL EN LIGNE</div>
+  <div class="subtitle">Affrontez un ami à distance</div>
+
+  <div id="onlineChoice" class="mode-grid">
+    <div class="mode-card duel" id="onlineCreateCard">
+      <div class="icon">➕</div>
+      <h3>CRÉER UNE PARTIE</h3>
+      <p>Génère un code à envoyer à ton adversaire.</p>
+    </div>
+    <div class="mode-card duel" id="onlineJoinCard">
+      <div class="icon">🔑</div>
+      <h3>REJOINDRE UNE PARTIE</h3>
+      <p>Entre le code que ton adversaire t'a envoyé.</p>
+    </div>
+  </div>
+
+  <div id="onlineCreatePanel" class="online-panel hidden">
+    <p class="online-status" id="createStatus">Génération du code…</p>
+    <div id="roomCodeBox" class="hidden">
+      <div id="roomCodeValue">——————</div>
+      <button class="btn btn-secondary" id="copyCodeBtn">COPIER LE CODE</button>
+      <p class="online-hint">Envoie ce code à ton adversaire. En attente de connexion…</p>
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <div id="onlineJoinPanel" class="online-panel hidden">
+    <p class="online-hint">Code reçu de ton adversaire :</p>
+    <input type="text" id="joinCodeInput" maxlength="6" placeholder="XXXXX" autocapitalize="characters" autocomplete="off">
+    <button class="btn btn-primary" id="joinConfirmBtn">REJOINDRE</button>
+    <p class="online-status" id="joinStatus"></p>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn btn-secondary" id="onlineBackBtn">RETOUR</button>
+  </div>
+</div>
+
+<!-- ============ ONLINE SALON (waiting room) ============ -->
+<div id="screen-salon" class="screen hidden">
+  <div class="title-logo" style="font-size:26px;">SALON DE PARTIE</div>
+  <div class="subtitle" id="salonSubtitle">Les deux joueurs sont connectés</div>
+  <div id="salonScoreLine" class="online-hint hidden"></div>
+
+  <div class="salon-row">
+    <div class="salon-card">
+      <div class="avatar-badge" id="salonMeAvatar" style="margin:0 auto;"></div>
+      <canvas id="salonMeCanvas" width="84" height="84"></canvas>
+      <div class="salon-name">TOI</div>
+      <div class="salon-ready" id="salonMeReady">En attente…</div>
+    </div>
+    <div class="salon-vs">VS</div>
+    <div class="salon-card">
+      <div class="avatar-badge" id="salonFoeAvatar" style="margin:0 auto;"></div>
+      <canvas id="salonFoeCanvas" width="84" height="84"></canvas>
+      <div class="salon-name" id="salonFoeName">ADVERSAIRE</div>
+      <div class="salon-ready" id="salonFoeReady">En attente…</div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="salonReadyBtn">PRÊT !</button>
+
+  <div class="bottom-bar">
+    <button class="btn btn-secondary" id="salonLeaveBtn">QUITTER LE SALON</button>
+  </div>
+</div>
+
+<!-- ============ GAME ============ -->
+<div id="screen-game" class="screen hidden">
+  <canvas id="gameCanvas"></canvas>
+  <div id="debugBanner" class="hidden">
+    <div id="debugBannerText"></div>
+    <div style="display:flex; gap:8px; margin-top:6px;">
+      <button class="btn btn-secondary" id="debugCopyBtn" style="padding:6px 12px; font-size:11px;">COPIER</button>
+      <button class="btn btn-secondary" id="debugCloseBtn" style="padding:6px 12px; font-size:11px;">FERMER</button>
+    </div>
+  </div>
+  <div id="hud">
+    <div id="topbar">
+      <div id="scoreRow">
+        <span class="badge us" id="usScore">VOUS 0</span>
+        <span class="badge them" id="themScore">EUX 0</span>
+      </div>
+      <div id="timer">2:00</div>
+      <div id="gemRow"><span class="diamond"></span><span id="gemNum">0</span></div>
+    </div>
+
+    <div id="healthWrap">
+      <div class="hp-row">
+        <div class="avatar-badge" id="hudAvatar" style="width:30px;height:30px;font-size:14px;"></div>
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:800;color:#cfe0f5;">VIE</div>
+          <div class="hpbar"><div class="hpfill" id="hpFill" style="width:100%;"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="spectatorBar" class="hidden">
+      <button id="spectatePrev" class="spectate-btn">◀</button>
+      <span id="spectateLabel">MODE SPECTATEUR</span>
+      <button id="spectateNext" class="spectate-btn">▶</button>
+    </div>
+
+    <div id="joystickZone">
+      <div class="stick-fixed" id="moveStick">
+        <div class="stick-base" id="stickBase"><div class="stick-nub" id="stickNub"></div></div>
+        <div class="stick-label">DÉPLACEMENT</div>
+      </div>
+    </div>
+    <div id="fireZone">
+      <div class="stick-fixed" id="aimStick">
+        <div class="stick-base" id="fireBase"><div class="stick-nub" id="fireNub"></div></div>
+        <div class="stick-label">VISER &amp; TIRER</div>
+      </div>
+    </div>
+
+    <div id="centerMsg">
+      <div id="results" class="hidden">
+        <h1 id="resultTitle">VICTOIRE</h1>
+        <p id="resultSub">—</p>
+        <div class="btnrow">
+          <button class="btn btn-secondary" id="changeModeBtn">CHANGER DE MODE</button>
+          <button class="btn btn-primary" id="retryBtn">REJOUER</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ================= CANVAS SETUP =================
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const ARENA = { w: 1600, h: 1000 };
+  const TEAM_ME = 'me', TEAM_FOE = 'foe';
+  const MATCH_TIME = 120;
+  const WIN_GEMS = 10;
+  const WIN_GOALS = 2;
+  const GOAL_HALF = 90;
+  const CORNER_R = 110; // radius of the rounded arena corners (mainly to stop the ball getting trapped in Brawl Ball)
+
+  let camera = { x: ARENA.w/2, y: ARENA.h/2 };
+
+  // ================= PROFILE AVATARS =================
+  const AVATARS = [
+    { id:'flame',  emoji:'🔥', c1:'#ff8a3d', c2:'#9c2e12' },
+    { id:'bolt',   emoji:'⚡', c1:'#ffe45c', c2:'#a3821a' },
+    { id:'skull',  emoji:'💀', c1:'#9fb3c8', c2:'#33414d' },
+    { id:'wolf',   emoji:'🐺', c1:'#8ea3bd', c2:'#2e3d52' },
+    { id:'fox',    emoji:'🦊', c1:'#ff9a3d', c2:'#8a4a12' },
+    { id:'dragon', emoji:'🐉', c1:'#5cd97a', c2:'#1a6b33' },
+    { id:'crown',  emoji:'👑', c1:'#ffd76b', c2:'#8a6a1a' },
+    { id:'target', emoji:'🎯', c1:'#ff5566', c2:'#8a1a2a' },
+    { id:'star',   emoji:'⭐', c1:'#ffe45c', c2:'#a38a1a' },
+    { id:'moon',   emoji:'🌙', c1:'#c1b3ff', c2:'#4a3a8a' },
+    { id:'clover', emoji:'🍀', c1:'#5cff9a', c2:'#1a8a4a' },
+    { id:'gem',    emoji:'💎', c1:'#54c7ff', c2:'#1a5c8a' },
+  ];
+  function getAvatar(id){ return AVATARS.find(a=>a.id===id) || AVATARS[0]; }
+  function styleAvatarEl(el, avatar){
+    el.textContent = avatar.emoji;
+    el.style.background = `linear-gradient(145deg, ${avatar.c1}, ${avatar.c2})`;
+  }
+
+  // ================= CHARACTER ROSTER =================
+  const CHARACTERS = [
+    { id:'pyra', name:'Pyra', shape:'circle', attack:'blast', attackLabel:'Boule de feu',
+      hp:100, speed:185, fireRate:0.7, bulletSpeed:380, damage:24, bulletR:8, splash:46,
+      skins:[
+        {name:'Volcan', main:'#ff6b3d', accent:'#a3391a', rarity:'commune'},
+        {name:'Glacier', main:'#6bdcff', accent:'#1a6f99', rarity:'rare'},
+        {name:'Braise Cosmique', main:'#ff2e6d', accent:'#5c001a', rarity:'epique'},
+        {name:'Phénix Doré', main:'#ffd23d', accent:'#ff3d00', rarity:'legendaire', legendary:true},
+        {name:'Supernova', main:'#ffffff', accent:'#ff6bd6', rarity:'mythique', mythic:true}
+      ]},
+    { id:'vex', name:'Vex', shape:'triangle', attack:'shotgun', attackLabel:'Fusil à pompe', pellets:5,
+      hp:92, speed:200, fireRate:0.9, bulletSpeed:430, damage:9, bulletR:4,
+      skins:[
+        {name:'Ombre', main:'#c17bff', accent:'#5b2a8a', rarity:'commune'},
+        {name:'Néon', main:'#ff5cf0', accent:'#8a1a7a', rarity:'rare'},
+        {name:'Prisme Toxique', main:'#39ff88', accent:'#0a5c2e', rarity:'epique'},
+        {name:'Spectre Écarlate', main:'#ff2fbf', accent:'#3d0080', rarity:'legendaire', legendary:true},
+        {name:'Vortex Abyssal', main:'#0a0a0a', accent:'#ff2fbf', rarity:'mythique', mythic:true}
+      ]},
+    { id:'nova', name:'Nova', shape:'diamond', attack:'sniper', attackLabel:'Tir de précision',
+      hp:78, speed:172, fireRate:1.15, bulletSpeed:700, damage:34, bulletR:4,
+      skins:[
+        {name:'Azur', main:'#54c7ff', accent:'#1a5c8a', rarity:'commune'},
+        {name:'Doré', main:'#ffd76b', accent:'#8a6a1a', rarity:'rare'},
+        {name:'Cristal Violet', main:'#b28aff', accent:'#4b1a8a', rarity:'epique'},
+        {name:'Nova Stellaire', main:'#e2fbff', accent:'#0090ff', rarity:'legendaire', legendary:true},
+        {name:'Singularité', main:'#050014', accent:'#e2fbff', rarity:'mythique', mythic:true}
+      ]},
+    { id:'rook', name:'Rook', shape:'square', attack:'bash', attackLabel:'Choc de bouclier',
+      hp:160, speed:142, fireRate:0.85, damage:32, range:64, arcDeg:80,
+      skins:[
+        {name:'Acier', main:'#8fa3b8', accent:'#2c3e50', rarity:'commune'},
+        {name:'Rouille', main:'#c97b4a', accent:'#5a3218', rarity:'rare'},
+        {name:'Obsidienne', main:'#3a2f4a', accent:'#8a2be2', rarity:'epique'},
+        {name:'Titane Impérial', main:'#fff4c2', accent:'#8a6a00', rarity:'legendaire', legendary:true},
+        {name:'Monolithe', main:'#1a1a1a', accent:'#ffd23d', rarity:'mythique', mythic:true}
+      ]},
+    { id:'zip', name:'Zip', shape:'hexagon', attack:'rapid', attackLabel:'Tir rapide',
+      hp:84, speed:216, fireRate:0.16, bulletSpeed:470, damage:7, bulletR:4,
+      skins:[
+        {name:'Voltage', main:'#ffe45c', accent:'#8a7a1a', rarity:'commune'},
+        {name:'Toxique', main:'#8dff5c', accent:'#3a7a1a', rarity:'rare'},
+        {name:'Chrome Ardent', main:'#ff7b3d', accent:'#802000', rarity:'epique'},
+        {name:'Fulgur Plasma', main:'#c2fff5', accent:'#00b3a3', rarity:'legendaire', legendary:true},
+        {name:'Zénith Quantique', main:'#f0f0ff', accent:'#7b2fff', rarity:'mythique', mythic:true}
+      ]},
+    { id:'luna', name:'Luna', shape:'star', attack:'lob', attackLabel:'Orbe lunaire',
+      hp:96, speed:176, fireRate:1.3, bulletSpeed:250, damage:30, bulletR:10, splash:72,
+      skins:[
+        {name:'Éclipse', main:'#a06bff', accent:'#4a1a8a', rarity:'commune'},
+        {name:'Aurore', main:'#ff9ad6', accent:'#8a1a5c', rarity:'rare'},
+        {name:'Nébuleuse', main:'#3dfff0', accent:'#0a5c66', rarity:'epique'},
+        {name:'Éclipse Totale', main:'#2b2b2b', accent:'#ffd23d', rarity:'legendaire', legendary:true},
+        {name:'Astre Divin', main:'#fffbe0', accent:'#ff9ad6', rarity:'mythique', mythic:true}
+      ]},
+    { id:'terra', name:'Terra', shape:'pentagon', attack:'bash', attackLabel:'Percussion sismique',
+      hp:130, speed:165, fireRate:0.65, damage:38, range:56, arcDeg:70,
+      skins:[
+        {name:'Granit', main:'#8a7c5c', accent:'#3d3423', rarity:'commune'},
+        {name:'Mousse', main:'#6bc97a', accent:'#1f5c2b', rarity:'rare'},
+        {name:'Magma', main:'#ff6b3d', accent:'#5c1a00', rarity:'epique'},
+        {name:'Séisme Doré', main:'#ffd76b', accent:'#5c4300', rarity:'legendaire', legendary:true},
+        {name:'Cœur Tellurique', main:'#2b1a0a', accent:'#ff9a3d', rarity:'mythique', mythic:true}
+      ]},
+    { id:'echo', name:'Echo', shape:'cross', attack:'rapid', attackLabel:'Rafale spectrale',
+      hp:76, speed:225, fireRate:0.12, bulletSpeed:500, damage:6, bulletR:4,
+      skins:[
+        {name:'Signal', main:'#6bdcff', accent:'#1a6f99', rarity:'commune'},
+        {name:'Statique', main:'#ffffff', accent:'#8ea3bd', rarity:'rare'},
+        {name:'Fréquence Rouge', main:'#ff3d5c', accent:'#5c0018', rarity:'epique'},
+        {name:'Écho Doré', main:'#ffd23d', accent:'#8a6a00', rarity:'legendaire', legendary:true},
+        {name:'Résonance Infinie', main:'#e0fff8', accent:'#00ffcc', rarity:'mythique', mythic:true}
+      ]},
+    { id:'astra', name:'Astra', shape:'octagon', attack:'shotgun', attackLabel:'Éclat stellaire', pellets:7,
+      hp:88, speed:190, fireRate:1.0, bulletSpeed:410, damage:8, bulletR:4,
+      skins:[
+        {name:'Comète', main:'#c2d4ff', accent:'#2a3a8a', rarity:'commune'},
+        {name:'Météore', main:'#ff9a3d', accent:'#8a3d00', rarity:'rare'},
+        {name:'Galaxie', main:'#b28aff', accent:'#2a0a5c', rarity:'epique'},
+        {name:'Constellation', main:'#ffd23d', accent:'#3d2a00', rarity:'legendaire', legendary:true},
+        {name:'Big Bang', main:'#ffffff', accent:'#ff6bd6', rarity:'mythique', mythic:true}
+      ]},
+    { id:'onyx', name:'Onyx', shape:'heptagon', attack:'blast', attackLabel:'Déflagration lourde',
+      hp:140, speed:150, fireRate:1.0, bulletSpeed:300, damage:30, bulletR:10, splash:60,
+      skins:[
+        {name:'Basalte', main:'#4a4a4a', accent:'#1a1a1a', rarity:'commune'},
+        {name:'Cuivre', main:'#c97b4a', accent:'#5a3218', rarity:'rare'},
+        {name:'Améthyste', main:'#8a5cff', accent:'#2a0a5c', rarity:'epique'},
+        {name:'Roi Déchu', main:'#ffd23d', accent:'#3a2a00', rarity:'legendaire', legendary:true},
+        {name:'Vide Éternel', main:'#000000', accent:'#8a5cff', rarity:'mythique', mythic:true}
+      ]},
+    { id:'volt', name:'Volt', shape:'nonagon', attack:'rapid', attackLabel:'Décharge continue',
+      hp:70, speed:230, fireRate:0.1, bulletSpeed:520, damage:6, bulletR:3,
+      skins:[
+        {name:'Étincelle', main:'#ffe45c', accent:'#8a7a1a', rarity:'commune'},
+        {name:'Plasma', main:'#54c7ff', accent:'#1a5c8a', rarity:'rare'},
+        {name:'Fulmination', main:'#ff3d5c', accent:'#5c0018', rarity:'epique'},
+        {name:'Tempête Dorée', main:'#fff4c2', accent:'#8a6a00', rarity:'legendaire', legendary:true},
+        {name:'Foudre Absolue', main:'#ffffff', accent:'#54c7ff', rarity:'mythique', mythic:true}
+      ]},
+    { id:'sable', name:'Sable', shape:'decagon', attack:'sniper', attackLabel:'Tir longue portée',
+      hp:70, speed:160, fireRate:1.6, bulletSpeed:800, damage:44, bulletR:4,
+      skins:[
+        {name:'Désert', main:'#d9b877', accent:'#5c4318', rarity:'commune'},
+        {name:'Oasis', main:'#6bdcff', accent:'#1a6f99', rarity:'rare'},
+        {name:'Tempête de Sable', main:'#ff9a3d', accent:'#5c2e00', rarity:'epique'},
+        {name:'Pharaon', main:'#ffd23d', accent:'#0a5c66', rarity:'legendaire', legendary:true},
+        {name:'Éternité', main:'#fff8e0', accent:'#c97b4a', rarity:'mythique', mythic:true}
+      ]},
+    { id:'korrupt', name:'Korrupt', shape:'star', attack:'shotgun', attackLabel:'Éclat corrosif', pellets:3,
+      hp:95, speed:195, fireRate:0.8, bulletSpeed:400, damage:13, bulletR:5,
+      skins:[
+        {name:'Faille', main:'#6b4a8a', accent:'#2a1a3d', rarity:'commune'},
+        {name:'Poison', main:'#6bff8a', accent:'#1a5c2e', rarity:'rare'},
+        {name:'Corruption', main:'#ff2fbf', accent:'#3d0080', rarity:'epique'},
+        {name:'Chaos Doré', main:'#ffd23d', accent:'#5c0018', rarity:'legendaire', legendary:true},
+        {name:'Néant Pourpre', main:'#0a0014', accent:'#ff2fbf', rarity:'mythique', mythic:true}
+      ]},
+    { id:'glacia', name:'Glacia', shape:'hexagon', attack:'lob', attackLabel:'Orbe de givre',
+      hp:100, speed:170, fireRate:1.1, bulletSpeed:280, damage:26, bulletR:9, splash:64,
+      skins:[
+        {name:'Frimas', main:'#b3e8ff', accent:'#3a7a99', rarity:'commune'},
+        {name:'Banquise', main:'#ffffff', accent:'#54c7ff', rarity:'rare'},
+        {name:'Glace Noire', main:'#1a2a3d', accent:'#54c7ff', rarity:'epique'},
+        {name:'Aurore Boréale', main:'#6bffb3', accent:'#1a5c8a', rarity:'legendaire', legendary:true},
+        {name:'Zéro Absolu', main:'#ffffff', accent:'#0090ff', rarity:'mythique', mythic:true}
+      ]},
+    { id:'umbra', name:'Umbra', shape:'cross', attack:'bash', attackLabel:'Frappe furtive',
+      hp:85, speed:210, fireRate:0.55, damage:42, range:48, arcDeg:60,
+      skins:[
+        {name:'Pénombre', main:'#4a4a5c', accent:'#1a1a2a', rarity:'commune'},
+        {name:'Crépuscule', main:'#ff7b9a', accent:'#5c1a3a', rarity:'rare'},
+        {name:'Nuit Noire', main:'#1a1a2a', accent:'#8a2be2', rarity:'epique'},
+        {name:'Faucheuse', main:'#ffd23d', accent:'#0a0a0a', rarity:'legendaire', legendary:true},
+        {name:'Ombre Primordiale', main:'#000000', accent:'#ff2fbf', rarity:'mythique', mythic:true}
+      ]},
+  ];
+  function getChar(id){ return CHARACTERS.find(c=>c.id===id); }
+
+  // ================= SHAPE DRAWING =================
+  function drawPolygon(ctx, r, sides, startAngle, mainColor, accentColor){
+    ctx.beginPath();
+    for(let i=0;i<sides;i++){
+      const a = startAngle + i*(Math.PI*2/sides);
+      const px = Math.cos(a)*r, py = Math.sin(a)*r;
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = mainColor; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = accentColor; ctx.stroke();
+  }
+  function drawStar(ctx, rOuter, rInner, points, mainColor, accentColor){
+    ctx.beginPath();
+    for(let i=0;i<points*2;i++){
+      const r = i%2===0 ? rOuter : rInner;
+      const a = -Math.PI/2 + i*(Math.PI/points);
+      const px = Math.cos(a)*r, py = Math.sin(a)*r;
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = mainColor; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = accentColor; ctx.stroke();
+  }
+  function drawFacingWedge(ctx, r, angle, color){
+    ctx.save(); ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(r*0.5,-5); ctx.lineTo(r+14,0); ctx.lineTo(r*0.5,5);
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+    ctx.restore();
+  }
+  function drawShape(ctx, shape, r, mainColor, accentColor, angle){
+    switch(shape){
+      case 'circle':
+        ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+        ctx.fillStyle=mainColor; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=accentColor; ctx.stroke();
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+      case 'triangle':
+        ctx.save(); ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(r*1.15,0); ctx.lineTo(-r*0.75,-r*0.85); ctx.lineTo(-r*0.75,r*0.85); ctx.closePath();
+        ctx.fillStyle=mainColor; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=accentColor; ctx.stroke();
+        ctx.restore();
+        break;
+      case 'diamond':
+        ctx.save(); ctx.rotate(Math.PI/4);
+        ctx.fillStyle=mainColor; ctx.fillRect(-r*0.75,-r*0.75,r*1.5,r*1.5);
+        ctx.lineWidth=3; ctx.strokeStyle=accentColor; ctx.strokeRect(-r*0.75,-r*0.75,r*1.5,r*1.5);
+        ctx.restore();
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+      case 'square':
+        ctx.fillStyle=mainColor; ctx.fillRect(-r*0.8,-r*0.8,r*1.6,r*1.6);
+        ctx.lineWidth=3; ctx.strokeStyle=accentColor; ctx.strokeRect(-r*0.8,-r*0.8,r*1.6,r*1.6);
+        ctx.save(); ctx.rotate(angle);
+        ctx.fillStyle=accentColor; ctx.fillRect(0,-5,r*1.1,10);
+        ctx.restore();
+        break;
+      case 'hexagon':
+        drawPolygon(ctx, r, 6, -Math.PI/2, mainColor, accentColor);
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+      case 'star':
+        drawStar(ctx, r, r*0.46, 5, mainColor, accentColor);
+        drawFacingWedge(ctx, r*0.9, angle, accentColor);
+        break;
+      case 'pentagon':
+        drawPolygon(ctx, r, 5, -Math.PI/2, mainColor, accentColor);
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+      case 'octagon':
+        drawPolygon(ctx, r, 8, -Math.PI/2.5, mainColor, accentColor);
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+      case 'heptagon':
+        drawPolygon(ctx, r, 7, -Math.PI/2, mainColor, accentColor);
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+      case 'nonagon':
+        drawPolygon(ctx, r, 9, -Math.PI/2, mainColor, accentColor);
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+      case 'decagon':
+        drawPolygon(ctx, r, 10, -Math.PI/2, mainColor, accentColor);
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+      case 'cross':
+        ctx.fillStyle=mainColor;
+        ctx.fillRect(-r*0.35,-r,r*0.7,r*2);
+        ctx.fillRect(-r,-r*0.35,r*2,r*0.7);
+        ctx.lineWidth=3; ctx.strokeStyle=accentColor;
+        ctx.strokeRect(-r*0.35,-r,r*0.7,r*2);
+        ctx.strokeRect(-r,-r*0.35,r*2,r*0.7);
+        drawFacingWedge(ctx, r, angle, accentColor);
+        break;
+    }
+  }
+
+  // ================= TERRAIN =================
+  const grassTufts = [];
+  (function genTufts(){
+    for(let i=0;i<220;i++){
+      grassTufts.push({
+        x: Math.random()*ARENA.w, y: Math.random()*ARENA.h,
+        s: 4+Math.random()*5, a: Math.random()*Math.PI
+      });
+    }
+  })();
+
+  function makeRockObstacles(){
+    return [
+      {x: ARENA.w/2 - 65, y: ARENA.h/2 - 250, w: 130, h: 46},
+      {x: ARENA.w/2 - 65, y: ARENA.h/2 + 204, w: 130, h: 46},
+      {x: ARENA.w/2 - 230, y: ARENA.h/2 - 34, w: 64, h: 68},
+      {x: ARENA.w/2 + 166, y: ARENA.h/2 - 34, w: 64, h: 68},
+      {x: 480, y: 140, w: 54, h: 150},
+      {x: ARENA.w-534, y: ARENA.h-290, w: 54, h: 150},
+      {x: 480, y: ARENA.h-290, w: 54, h: 150},
+      {x: ARENA.w-534, y: 140, w: 54, h: 150},
+    ];
+  }
+
+  // ================= STATE =================
+  let mode = 'gem';
+  let teamSize = 3;
+  let selectedCharId = 'pyra';
+  let selectedSkinIdx = 0;
+  let selectedAvatarId = AVATARS[0].id;
+  let currentPseudo = 'Toi';
+  let profilePoints = 0;
+  let characterPoints = {}; // { charId: points }
+  let totalPointsEarned = 0; // lifetime points from wins only — never decreases, drives reward unlocks
+
+  // Character unlocks: start with only the first one; each further character
+  // needs more cumulative points than the last, with growing gaps so the
+  // roster keeps giving long-term players something to aim for.
+  const CHAR_UNLOCK_ORDER = ['pyra','zip','vex','rook','nova','terra','echo','luna','astra','onyx','volt','sable','korrupt','glacia','umbra'];
+  const CHAR_UNLOCK_THRESHOLDS = [0, 50, 100, 150, 200, 250, 300, 350, 400, 500, 1000, 2000, 3500, 6000, 10000];
+  function charUnlockThreshold(charId){
+    const idx = CHAR_UNLOCK_ORDER.indexOf(charId);
+    return idx<0 ? 0 : (CHAR_UNLOCK_THRESHOLDS[idx] || 0);
+  }
+  function isCharUnlocked(charId){ return totalPointsEarned >= charUnlockThreshold(charId); }
+
+  // Skin rarity: every character shares the same rarity ladder, unlocked for
+  // everyone at the same cumulative-point milestones — lowest rarity first.
+  const RARITY_ORDER = ['commune','rare','epique','legendaire','mythique'];
+  const RARITY_LABEL = { commune:'Commune', rare:'Rare', epique:'Épique', legendaire:'Légendaire', mythique:'Mythique' };
+  const RARITY_COLOR = { commune:'#8ea3bd', rare:'#54c7ff', epique:'#c17bff', legendaire:'#ffcc00', mythique:'#ff4fd8' };
+  const RARITY_THRESHOLD = { commune:0, rare:300, epique:450, legendaire:600, mythique:800 };
+  function isSkinUnlocked(charId, skin){
+    return totalPointsEarned >= (RARITY_THRESHOLD[skin.rarity] || 0);
+  }
+
+  // Builds the full, chronologically sorted list of upcoming rewards (both
+  // character unlocks and rarity-tier unlocks) — used by the rewards screen
+  // and to detect what just got unlocked after a win.
+  function buildMilestones(){
+    const list = [];
+    CHAR_UNLOCK_ORDER.forEach((cid,i)=>{
+      if(i===0) return; // the starter character isn't a "reward"
+      list.push({ type:'character', charId:cid, threshold: CHAR_UNLOCK_THRESHOLDS[i] });
+    });
+    RARITY_ORDER.forEach(r=>{
+      if(r==='commune') return;
+      list.push({ type:'rarity', rarity:r, threshold: RARITY_THRESHOLD[r] });
+    });
+    list.sort((a,b)=>a.threshold-b.threshold);
+    return list;
+  }
+
+  let player, allies = [], enemies = [], gems = [], bullets = [], obstacles = [], particles = [], meleeSwings = [];
+  let ball = { x:0, y:0, vx:0, vy:0, r:15 };
+  let myScore = 0, foeScore = 0, timeLeft = MATCH_TIME, running = false, matchOver = false;
+
+  // spectator mode (elimination, once the player is dead)
+  let spectateIdx = 0;
+
+  // ================= ONLINE DUEL (WebRTC via PeerJS) =================
+  let netPeer = null;          // PeerJS Peer instance
+  let netConn = null;          // active DataConnection to the opponent
+  let netRole = null;          // 'host' | 'joiner' | null
+  let netOpponentMeta = null;  // { charId, skinIdx, name } received from the peer
+  let netStateAccum = 0;       // throttles how often the host broadcasts state
+  let latestRemoteInput = { mx:0, my:0, aimX:1, aimY:0, firing:false }; // host: last input received from the joiner
+
+  // salon (ready-up room)
+  let netReadyLocal = false;
+  let netReadyRemote = false;
+
+  // tournament (best of 3 duels)
+  const TOURNAMENT_TARGET = 2;
+  let tournamentWins = { me:0, foe:0 };
+  let tournamentConcluded = false;
+
+  function isOnlineMode(){ return mode==='duel' || mode==='tournament'; }
+
+  function makeFighter(team, x, y, charDef, skinIdx, name, isPlayer){
+    const skin = charDef.skins[skinIdx] || charDef.skins[0];
+    return {
+      team, x, y, name: name || charDef.name, isPlayer: !!isPlayer,
+      charDef, skinIdx,
+      r: 20,
+      hp: charDef.hp, maxHp: charDef.hp,
+      speed: charDef.speed,
+      cooldown: 0,
+      alive: true, respawnTimer: 0,
+      colorMain: skin.main, colorAccent: skin.accent,
+      aimX: 1, aimY: 0,
+      lastMoveX: 1, lastMoveY: 0,
+      wanderAngle: Math.random()*Math.PI*2, wanderTimer: 0,
+    };
+  }
+
+  // Builds the extra characters needed for both teams. With 6 characters total
+  // this works out to unique picks for 3v3; for 5v5 the pool is cycled so
+  // characters can repeat (with a random skin so duplicates still look distinct).
+  function pickRoster(n){
+    const pool = CHARACTERS.filter(c=>c.id!==selectedCharId);
+    const needed = (n-1) + n;
+    const source = [];
+    while(source.length < needed){
+      source.push(...[...pool].sort(()=>Math.random()-0.5));
+    }
+    const allyMates = source.slice(0, n-1);
+    const foeTeamChars = source.slice(n-1, n-1+n);
+    return { allyMates, foeTeamChars };
+  }
+
+  // Spreads n fighters vertically around the arena's mid-height, alternating
+  // between two front/back columns so they don't spawn in a single stacked line.
+  function spawnFormation(team, n){
+    const centerY = ARENA.h/2;
+    const spacing = n<=3 ? 150 : 100;
+    const nearX = team===TEAM_ME ? 300 : ARENA.w-300;
+    const farX = team===TEAM_ME ? 210 : ARENA.w-210;
+    const positions = [];
+    for(let i=0;i<n;i++){
+      const offsetIndex = i - (n-1)/2;
+      const y = Math.max(70, Math.min(ARENA.h-70, centerY + offsetIndex*spacing));
+      const x = (i%2===0) ? nearX : farX;
+      positions.push({x,y});
+    }
+    return positions;
+  }
+
+  function resetGame(){
+    allies = []; enemies = []; gems = []; bullets = []; particles = []; meleeSwings = [];
+    myScore = 0; foeScore = 0; timeLeft = MATCH_TIME; matchOver = false;
+    spectateIdx = 0;
+    obstacles = makeRockObstacles();
+
+    const myChar = getChar(selectedCharId);
+
+    if(isOnlineMode()){
+      player = makeFighter(TEAM_ME, 300, ARENA.h/2, myChar, selectedSkinIdx, currentPseudo, true);
+      allies.push(player);
+      const oppChar = (netOpponentMeta && getChar(netOpponentMeta.charId)) || CHARACTERS[0];
+      const oppSkinIdx = netOpponentMeta ? netOpponentMeta.skinIdx : 0;
+      const oppName = (netOpponentMeta && netOpponentMeta.name) || 'Adversaire';
+      enemies.push(makeFighter(TEAM_FOE, ARENA.w-300, ARENA.h/2, oppChar, oppSkinIdx, oppName));
+    } else {
+      const { allyMates, foeTeamChars } = pickRoster(teamSize);
+      const allyPos = spawnFormation(TEAM_ME, teamSize);
+      const foePos = spawnFormation(TEAM_FOE, teamSize);
+
+      player = makeFighter(TEAM_ME, allyPos[0].x, allyPos[0].y, myChar, selectedSkinIdx, currentPseudo, true);
+      allies.push(player);
+      for(let i=0;i<teamSize-1;i++){
+        const p = allyPos[i+1];
+        allies.push(makeFighter(TEAM_ME, p.x, p.y, allyMates[i], Math.floor(Math.random()*allyMates[i].skins.length)));
+      }
+      for(let i=0;i<teamSize;i++){
+        const p = foePos[i];
+        enemies.push(makeFighter(TEAM_FOE, p.x, p.y, foeTeamChars[i], Math.floor(Math.random()*foeTeamChars[i].skins.length)));
+      }
+    }
+
+    if(mode==='gem'){ for(let i=0;i<8;i++) spawnGem(); }
+    if(mode==='ball'){ resetBall(); }
+
+    document.getElementById('hpFill').style.width = '100%';
+    document.getElementById('spectatorBar').classList.add('hidden');
+    styleAvatarEl(document.getElementById('hudAvatar'), getAvatar(selectedAvatarId));
+    refreshScoreHUD();
+    document.getElementById('timer').textContent = '2:00';
+  }
+
+  // Wraps resetGame()+running=true so a crash mid-setup (bad character data,
+  // unexpected roster size, etc.) can't leave an empty, frozen arena with no
+  // visible explanation — it reports the error and falls back to the home screen.
+  function safeStartGame(){
+    try{
+      resetGame();
+      running = true;
+    }catch(err){
+      running = false;
+      reportError('Démarrage de la partie', err);
+      document.getElementById('screen-game').classList.add('hidden');
+      document.getElementById('screen-mode').classList.remove('hidden');
+    }
+  }
+
+  function spawnGem(){
+    let x,y,tries=0;
+    do {
+      x = ARENA.w*0.25 + Math.random()*ARENA.w*0.5;
+      y = 60 + Math.random()*(ARENA.h-120);
+      tries++;
+    } while(obstacleAt(x,y,20) && tries<20);
+    gems.push({x,y,r:9,bob:Math.random()*Math.PI*2,dead:false});
+  }
+  function obstacleAt(x,y,pad){
+    for(const o of obstacles){ if(x+pad>o.x && x-pad<o.x+o.w && y+pad>o.y && y-pad<o.y+o.h) return true; }
+    return false;
+  }
+  function resetBall(){ ball.x = ARENA.w/2; ball.y = ARENA.h/2; ball.vx = 0; ball.vy = 0; }
+
+  // ================= INPUT: dual fixed analog sticks =================
+  // Both sticks stay visually anchored in place (bottom-left / bottom-right).
+  // Touching anywhere in a stick's half of the screen grabs it; the nub
+  // follows the finger but is clamped to a fixed-radius circle around the
+  // anchor, giving precise, predictable, thumb-memorable control.
+  let moveVec = {x:0,y:0};
+  let fireAim = {x:1,y:0};
+  let fireActive = false; // true only once the drag exceeds the precision dead zone
+
+  const joyZone = document.getElementById('joystickZone');
+  const stickBase = document.getElementById('stickBase');
+  const stickNub = document.getElementById('stickNub');
+  const fireZone = document.getElementById('fireZone');
+  const fireBase = document.getElementById('fireBase');
+  const fireNub = document.getElementById('fireNub');
+
+  const STICK_MAX = 54;       // px radius the nub can travel from center
+  const FIRE_DEADZONE = 9;    // px — below this, aim direction is held but no shot fires (avoids stray taps)
+
+  function anchorOf(el){
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width/2, y: r.top + r.height/2 };
+  }
+
+  function makeStick(zoneEl, baseEl, nubEl, opts){
+    let active = false, id = null, anchor = {x:0,y:0};
+    function start(cx, cy, pid){
+      active = true; id = pid;
+      anchor = anchorOf(baseEl);
+      baseEl.classList.add('live');
+      if(opts.onStart) opts.onStart();
+      update(cx, cy);
+    }
+    function update(cx, cy){
+      let dx = cx-anchor.x, dy = cy-anchor.y;
+      const rawDist = Math.hypot(dx,dy);
+      if(rawDist > STICK_MAX){ dx = dx/rawDist*STICK_MAX; dy = dy/rawDist*STICK_MAX; }
+      nubEl.style.transform = `translate(${dx}px, ${dy}px)`;
+      opts.onMove(dx, dy, rawDist);
+    }
+    function end(){
+      active = false; id = null;
+      baseEl.classList.remove('live');
+      nubEl.style.transform = 'translate(0px,0px)';
+      opts.onEnd();
+    }
+    zoneEl.addEventListener('touchstart', e=>{
+      e.preventDefault();
+      if(active) return;
+      const t = e.changedTouches[0];
+      start(t.clientX, t.clientY, t.identifier);
+    }, {passive:false});
+    zoneEl.addEventListener('touchmove', e=>{
+      e.preventDefault();
+      for(const t of e.changedTouches){ if(t.identifier===id) update(t.clientX, t.clientY); }
+    }, {passive:false});
+    zoneEl.addEventListener('touchend', e=>{
+      for(const t of e.changedTouches){ if(t.identifier===id) end(); }
+    });
+    zoneEl.addEventListener('touchcancel', e=>{
+      for(const t of e.changedTouches){ if(t.identifier===id) end(); }
+    });
+    let mouseDown=false;
+    zoneEl.addEventListener('mousedown', e=>{ mouseDown=true; start(e.clientX,e.clientY,'mouse'); });
+    window.addEventListener('mousemove', e=>{ if(mouseDown) update(e.clientX,e.clientY); });
+    window.addEventListener('mouseup', e=>{ if(mouseDown){ mouseDown=false; end(); } });
+  }
+
+  makeStick(joyZone, stickBase, stickNub, {
+    onMove(dx,dy,dist){
+      // analog: direction AND magnitude (0..1) both preserved for precise, proportional movement speed
+      moveVec.x = dx/STICK_MAX; moveVec.y = dy/STICK_MAX;
+    },
+    onEnd(){ moveVec = {x:0,y:0}; }
+  });
+
+  makeStick(fireZone, fireBase, fireNub, {
+    onStart(){ fireActive = true; }, // fire as soon as the stick is touched, no drag required
+    onMove(dx,dy,rawDist){
+      if(rawDist > FIRE_DEADZONE){
+        const mag = Math.hypot(dx,dy) || 1;
+        fireAim = {x: dx/mag, y: dy/mag};
+      }
+      // below the dead zone: keep the last aim direction (avoids jittery flips), but keep firing
+    },
+    onEnd(){ fireActive = false; }
+  });
+
+  let keys = {};
+  window.addEventListener('keydown', e=>keys[e.key.toLowerCase()]=true);
+  window.addEventListener('keyup', e=>keys[e.key.toLowerCase()]=false);
+
+  // ================= COMBAT =================
+  function spawnBullet(f, dirx, diry, opts){
+    bullets.push(Object.assign({
+      x: f.x+dirx*f.r*1.3, y: f.y+diry*f.r*1.3,
+      vx: dirx*opts.speed, vy: diry*opts.speed,
+      team: f.team, color: f.colorMain,
+      hitSet: opts.pierce ? new Set() : null,
+    }, opts));
+  }
+  function shootByType(f, dirx, diry){
+    if(f.cooldown>0) return;
+    const cd = f.charDef;
+    f.cooldown = cd.fireRate;
+    switch(cd.attack){
+      case 'blast':
+        spawnBullet(f,dirx,diry,{speed:cd.bulletSpeed,damage:cd.damage,r:cd.bulletR,life:1.0,splash:cd.splash});
+        break;
+      case 'shotgun': {
+        const n=cd.pellets||5, spread=30*Math.PI/180, base=Math.atan2(diry,dirx);
+        for(let i=0;i<n;i++){
+          const t=(i-(n-1)/2)/((n-1)/2);
+          const a=base+t*spread/2;
+          spawnBullet(f, Math.cos(a), Math.sin(a), {speed:cd.bulletSpeed,damage:cd.damage,r:cd.bulletR,life:0.22});
+        }
+        break;
+      }
+      case 'sniper':
+        spawnBullet(f,dirx,diry,{speed:cd.bulletSpeed,damage:cd.damage,r:cd.bulletR,life:1.4,pierce:true});
+        break;
+      case 'rapid':
+        spawnBullet(f,dirx,diry,{speed:cd.bulletSpeed,damage:cd.damage,r:cd.bulletR,life:0.8});
+        break;
+      case 'lob':
+        spawnBullet(f,dirx,diry,{speed:cd.bulletSpeed,damage:cd.damage,r:cd.bulletR,life:1.35,splash:cd.splash});
+        break;
+      case 'bash':
+        doMeleeBash(f,dirx,diry,cd);
+        break;
+    }
+  }
+  function doMeleeBash(f,dirx,diry,cd){
+    const range=cd.range, halfAngle=(cd.arcDeg*Math.PI/180)/2;
+    const targets = f.team===TEAM_ME ? enemies : allies;
+    for(const t of targets){
+      if(!t.alive) continue;
+      const dx=t.x-f.x, dy=t.y-f.y, dist=Math.hypot(dx,dy)||1;
+      if(dist < range+t.r){
+        const ang = Math.acos(Math.max(-1,Math.min(1,(dx*dirx+dy*diry)/dist)));
+        if(ang < halfAngle) damage(t, cd.damage, f.team);
+      }
+    }
+    meleeSwings.push({x:f.x,y:f.y,angle:Math.atan2(diry,dirx),range,arc:cd.arcDeg*Math.PI/180,life:0.18,color:f.colorAccent});
+  }
+  function splashDamage(x,y,radius,dmg,team){
+    const targets = team===TEAM_ME ? enemies : allies;
+    for(const t of targets){
+      if(!t.alive) continue;
+      const d = Math.hypot(t.x-x,t.y-y);
+      if(d < radius+t.r) damage(t, dmg*(1-Math.min(1,d/(radius+t.r))*0.4), team);
+    }
+    spawnParticles(x,y,'#ffaa33',14);
+  }
+  function damage(target, amount, sourceTeam){
+    if(!target.alive) return;
+    target.hp -= amount;
+    spawnParticles(target.x,target.y,target.colorAccent,4);
+    if(target.hp<=0){
+      target.alive=false; target.hp=0;
+      target.respawnTimer = 3.5;
+      spawnParticles(target.x,target.y,target.colorMain,16);
+    }
+  }
+  function spawnParticles(x,y,color,n){
+    for(let i=0;i<n;i++){
+      const a=Math.random()*Math.PI*2, s=40+Math.random()*120;
+      particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0.5+Math.random()*0.4,color});
+    }
+  }
+
+  // ================= AI =================
+  function updateAI(f, dt){
+    if(!f.alive) return;
+    const foeList = f.team===TEAM_ME ? enemies : allies;
+    const engageRange = mode==='knockout' ? 520 : 420;
+
+    // Pick the best target in range rather than just the nearest one: a
+    // weaker (lower HP) foe counts as "closer" in this scoring, so bots go
+    // for easier kills instead of always charging the first thing they see.
+    let target=null, bestScore=Infinity;
+    for(const e of foeList){
+      if(!e.alive) continue;
+      const d = Math.hypot(e.x-f.x, e.y-f.y);
+      if(d>engageRange) continue;
+      const hpFrac = e.hp/e.maxHp;
+      const score = d - hpFrac*130;
+      if(score<bestScore){ bestScore=score; target=e; }
+    }
+
+    let moveX=0, moveY=0;
+
+    if(target){
+      const cd = f.charDef;
+      const dx=target.x-f.x, dy=target.y-f.y, dist=Math.hypot(dx,dy)||1;
+      const dirx=dx/dist, diry=dy/dist;
+
+      // Lead slow projectiles toward where the target is currently heading —
+      // but only partially, and with random jitter, so it's an educated
+      // guess rather than a guaranteed hit; a player can still dodge or
+      // change direction to avoid it.
+      const bulletSpeed = cd.bulletSpeed || 520;
+      const leadTime = Math.min(0.55, dist/bulletSpeed);
+      const leadX = target.x + target.lastMoveX*target.speed*leadTime*0.6;
+      const leadY = target.y + target.lastMoveY*target.speed*leadTime*0.6;
+      const aimDx = leadX-f.x, aimDy = leadY-f.y;
+      const aimDist = Math.hypot(aimDx,aimDy)||1;
+      const aimx0 = aimDx/aimDist, aimy0 = aimDy/aimDist;
+      const jitter = (cd.attack==='sniper' ? 0.05 : 0.13); // radians of random aim error
+      const jang = (Math.random()-0.5)*jitter;
+      const ca=Math.cos(jang), sa=Math.sin(jang);
+      const jx = aimx0*ca - aimy0*sa, jy = aimx0*sa + aimy0*ca;
+      f.aimX = jx; f.aimY = jy;
+
+      const preferredDist = cd.attack==='bash' ? 50 : (cd.attack==='sniper' ? 320 : 220);
+      const hurt = f.hp < f.maxHp*0.32;
+
+      if(hurt && dist < preferredDist+140){
+        // Kite away while still shooting when badly hurt — gives a player
+        // room to finish the job rather than the bot fighting to the death.
+        moveX=-dirx; moveY=-diry;
+      } else if(dist>preferredDist+60){
+        moveX=dirx; moveY=diry;
+      } else if(dist<preferredDist-40){
+        moveX=-dirx; moveY=-diry;
+      } else {
+        // Erratic strafing (direction flips over time) instead of one fixed
+        // circling direction — harder to read, but not unpredictable enough
+        // to be unfair since it's still a simple sideways motion.
+        const strafeSign = Math.sin(performance.now()*0.0011 + f.wanderAngle) > 0 ? 1 : -1;
+        moveX=-diry*0.6*strafeSign; moveY=dirx*0.6*strafeSign;
+      }
+      shootByType(f, jx, jy);
+    } else if(mode==='gem'){
+      let ng=null, bestG=Infinity;
+      for(const g of gems){
+        let d=Math.hypot(g.x-f.x,g.y-f.y);
+        for(const e of foeList){ if(e.alive && Math.hypot(g.x-e.x,g.y-e.y)<150) d+=80; } // slightly avoid contested gems
+        if(d<bestG){ bestG=d; ng=g; }
+      }
+      if(ng){ const dx=ng.x-f.x,dy=ng.y-f.y,dist=Math.hypot(dx,dy)||1; moveX=dx/dist; moveY=dy/dist; f.aimX=moveX; f.aimY=moveY; }
+      else { moveX=Math.cos(f.wanderAngle); moveY=Math.sin(f.wanderAngle); }
+    } else if(mode==='ball'){
+      const goalX = f.team===TEAM_ME ? ARENA.w-20 : 20, goalY=ARENA.h/2;
+      const dxg=goalX-ball.x, dyg=goalY-ball.y, dg=Math.hypot(dxg,dyg)||1;
+      const bx = ball.x - dxg/dg*36, by = ball.y - dyg/dg*36;
+      const dx=bx-f.x, dy=by-f.y, dist=Math.hypot(dx,dy)||1;
+      moveX=dx/dist; moveY=dy/dist; f.aimX=(ball.x-f.x)/(Math.hypot(ball.x-f.x,ball.y-f.y)||1); f.aimY=(ball.y-f.y)/(Math.hypot(ball.x-f.x,ball.y-f.y)||1);
+    } else {
+      f.wanderTimer -= dt;
+      if(f.wanderTimer<=0){ f.wanderAngle=Math.random()*Math.PI*2; f.wanderTimer=1.5; }
+      moveX=Math.cos(f.wanderAngle); moveY=Math.sin(f.wanderAngle);
+    }
+    moveEntity(f, moveX, moveY, dt);
+  }
+  function moveEntity(f, mx, my, dt){
+    const len=Math.hypot(mx,my);
+    if(len>0.01){
+      const dirx=mx/len, diry=my/len;
+      const intensity = Math.min(1, len); // analog: light stick push = slower, precise steps; full push = full speed
+      f.lastMoveX=dirx; f.lastMoveY=diry;
+      const spd = f.speed*intensity;
+      let nx=f.x+dirx*spd*dt, ny=f.y+diry*spd*dt;
+      if(!obstacleAt(nx,f.y,f.r)) f.x=nx;
+      if(!obstacleAt(f.x,ny,f.r)) f.y=ny;
+      f.x=Math.max(f.r,Math.min(ARENA.w-f.r,f.x));
+      f.y=Math.max(f.r,Math.min(ARENA.h-f.r,f.y));
+    }
+  }
+  function respawn(f){
+    f.alive=true; f.hp=f.maxHp;
+    const base = f.team===TEAM_ME ? 260 : ARENA.w-260;
+    f.x = base + (Math.random()-0.5)*120;
+    f.y = ARENA.h/2 + (Math.random()-0.5)*260;
+  }
+
+  // ================= SPECTATOR MODE (Elimination) =================
+  function isSpectating(){
+    return mode==='knockout' && player && !player.alive;
+  }
+  function spectatorTarget(){
+    if(!isSpectating()) return player;
+    const aliveMates = allies.filter(f=>f.alive);
+    if(aliveMates.length===0) return player; // nothing left to watch, hold last position
+    spectateIdx = ((spectateIdx % aliveMates.length) + aliveMates.length) % aliveMates.length;
+    return aliveMates[spectateIdx];
+  }
+  function updateSpectatorUI(){
+    const bar = document.getElementById('spectatorBar');
+    const spectating = isSpectating();
+    bar.classList.toggle('hidden', !spectating);
+    document.getElementById('joystickZone').style.opacity = spectating ? '0.15' : '1';
+    document.getElementById('joystickZone').style.pointerEvents = spectating ? 'none' : 'auto';
+    document.getElementById('fireZone').style.opacity = spectating ? '0.15' : '1';
+    document.getElementById('fireZone').style.pointerEvents = spectating ? 'none' : 'auto';
+    if(spectating){
+      const target = spectatorTarget();
+      document.getElementById('spectateLabel').textContent =
+        (target && target!==player) ? ('SPECTATEUR — ' + target.name) : 'SPECTATEUR';
+    }
+  }
+
+  // ================= UPDATE =================
+  function update(dt){
+    if(!running || matchOver) return;
+    if(document.getElementById('rotateOverlay').classList.contains('show')) return; // paused while portrait
+    timeLeft -= dt;
+    if(timeLeft<=0){ timeLeft=0; endMatch(); }
+    document.getElementById('timer').textContent = Math.floor(timeLeft/60)+':'+String(Math.floor(timeLeft%60)).padStart(2,'0');
+
+    const respawnEnabled = mode!=='knockout' && mode!=='duel';
+    const isNetGuest = isOnlineMode() && netRole==='joiner';
+
+    if(isNetGuest){
+      // The joiner never simulates locally: it only sends inputs and renders
+      // whatever the host (authoritative) broadcasts back via applyRemoteState().
+      sendNetInput();
+    } else if(player.alive){
+      let mx=moveVec.x, my=moveVec.y;
+      if(keys['w']||keys['arrowup']) my-=1;
+      if(keys['s']||keys['arrowdown']) my+=1;
+      if(keys['a']||keys['arrowleft']) mx-=1;
+      if(keys['d']||keys['arrowright']) mx+=1;
+      moveEntity(player, mx, my, dt);
+      if(fireActive){ player.aimX=fireAim.x; player.aimY=fireAim.y; shootByType(player, fireAim.x, fireAim.y); }
+    } else if(respawnEnabled){
+      player.respawnTimer -= dt;
+      if(player.respawnTimer<=0) respawn(player);
+    }
+    // spectator mode: dead player in Elimination (no respawns) watches the fight through a teammate's eyes
+    updateSpectatorUI();
+
+    if(!isNetGuest){
+      for(const f of [...allies, ...enemies]){
+        if(f.cooldown>0) f.cooldown-=dt;
+        if(!f.alive && f!==player && respawnEnabled){
+          f.respawnTimer -= dt;
+          if(f.respawnTimer<=0) respawn(f);
+        }
+      }
+    }
+
+    if(isOnlineMode()){
+      if(netRole==='host'){
+        // drive the remote opponent from the last input the joiner sent us
+        const rf = enemies[0];
+        if(rf && rf.alive){
+          moveEntity(rf, latestRemoteInput.mx, latestRemoteInput.my, dt);
+          if(latestRemoteInput.firing){
+            rf.aimX = latestRemoteInput.aimX; rf.aimY = latestRemoteInput.aimY;
+            shootByType(rf, latestRemoteInput.aimX, latestRemoteInput.aimY);
+          }
+        }
+      }
+      // joiner: no AI, its opponent is fully driven by applyRemoteState()
+    } else {
+      for(const f of allies) if(f!==player) updateAI(f, dt);
+      for(const f of enemies) updateAI(f, dt);
+    }
+
+    // bullets — the joiner's bullets array is a mirror set by applyRemoteState(), never simulated locally
+    if(!isNetGuest){
+      bullets = bullets.filter(b=>{
+        b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
+        let dead=false, splashed=false;
+        if(b.life<=0) dead=true;
+        if(b.x<0||b.x>ARENA.w||b.y<0||b.y>ARENA.h) dead=true;
+        if(!dead){ for(const o of obstacles){ if(b.x>o.x&&b.x<o.x+o.w&&b.y>o.y&&b.y<o.y+o.h){ dead=true; break; } } }
+        if(!dead){
+          const targets = b.team===TEAM_ME ? enemies : allies;
+          for(const t of targets){
+            if(!t.alive) continue;
+            if(b.hitSet && b.hitSet.has(t)) continue;
+            if(Math.hypot(t.x-b.x,t.y-b.y) < t.r+b.r){
+              damage(t,b.damage,b.team);
+              if(b.splash){ splashDamage(b.x,b.y,b.splash,b.damage*0.6,b.team); splashed=true; }
+              if(b.pierce){ b.hitSet.add(t); if(b.hitSet.size>=2) dead=true; }
+              else dead=true;
+              break;
+            }
+          }
+        }
+        if(dead && b.splash && !splashed) splashDamage(b.x,b.y,b.splash,b.damage*0.6,b.team);
+        return !dead;
+      });
+    }
+
+    // gem mode logic
+    if(mode==='gem'){
+      for(const g of gems){
+        g.bob += dt*3;
+        for(const f of [...allies, ...enemies]){
+          if(!f.alive) continue;
+          if(Math.hypot(f.x-g.x,f.y-g.y) < f.r+g.r){
+            if(f.team===TEAM_ME) myScore++; else foeScore++;
+            spawnParticles(g.x,g.y,'#3ddc84',10);
+            g.dead = true;
+          }
+        }
+      }
+      gems = gems.filter(g=>!g.dead);
+      while(gems.length<6) spawnGem();
+      if(myScore>=WIN_GEMS || foeScore>=WIN_GEMS) endMatch();
+    }
+
+    // ball mode logic
+    if(mode==='ball'){
+      ball.x += ball.vx*dt; ball.y += ball.vy*dt;
+      ball.vx *= 0.985; ball.vy *= 0.985;
+
+      // Rounded corners: treat each corner as a circular boundary so the ball
+      // gets deflected smoothly back into play instead of getting trapped
+      // between two perpendicular walls.
+      const corners = [
+        { cx: CORNER_R, cy: CORNER_R, inX: ball.x < CORNER_R, inY: ball.y < CORNER_R },
+        { cx: ARENA.w-CORNER_R, cy: CORNER_R, inX: ball.x > ARENA.w-CORNER_R, inY: ball.y < CORNER_R },
+        { cx: CORNER_R, cy: ARENA.h-CORNER_R, inX: ball.x < CORNER_R, inY: ball.y > ARENA.h-CORNER_R },
+        { cx: ARENA.w-CORNER_R, cy: ARENA.h-CORNER_R, inX: ball.x > ARENA.w-CORNER_R, inY: ball.y > ARENA.h-CORNER_R },
+      ];
+      let inCorner = false;
+      for(const c of corners){
+        if(c.inX && c.inY){
+          inCorner = true;
+          const dx = ball.x-c.cx, dy = ball.y-c.cy;
+          const dist = Math.hypot(dx,dy) || 0.0001;
+          const limit = CORNER_R - ball.r;
+          if(dist > limit){
+            const nx = dx/dist, ny = dy/dist;
+            ball.x = c.cx + nx*limit; ball.y = c.cy + ny*limit;
+            const dot = ball.vx*nx + ball.vy*ny;
+            if(dot > 0){ ball.vx -= 1.6*dot*nx; ball.vy -= 1.6*dot*ny; }
+          }
+        }
+      }
+
+      const inGoalBand = Math.abs(ball.y - ARENA.h/2) < GOAL_HALF;
+      if(!inCorner){
+        if(ball.y<ball.r){ ball.y=ball.r; ball.vy=-ball.vy*0.6; }
+        if(ball.y>ARENA.h-ball.r){ ball.y=ARENA.h-ball.r; ball.vy=-ball.vy*0.6; }
+        if(!inGoalBand){
+          if(ball.x<ball.r){ ball.x=ball.r; ball.vx=-ball.vx*0.6; }
+          if(ball.x>ARENA.w-ball.r){ ball.x=ARENA.w-ball.r; ball.vx=-ball.vx*0.6; }
+        }
+      }
+      if(inGoalBand){
+        if(ball.x < 6){ foeScore++; spawnParticles(ball.x,ball.y,'#ff5566',20); resetBall(); }
+        else if(ball.x > ARENA.w-6){ myScore++; spawnParticles(ball.x,ball.y,'#3ddc84',20); resetBall(); }
+      }
+      for(const f of [...allies, ...enemies]){
+        if(!f.alive) continue;
+        const d = Math.hypot(f.x-ball.x, f.y-ball.y);
+        if(d < f.r+ball.r){
+          const pushX = Math.abs(f.lastMoveX)+Math.abs(f.lastMoveY)>0.1 ? f.lastMoveX : f.aimX;
+          const pushY = Math.abs(f.lastMoveX)+Math.abs(f.lastMoveY)>0.1 ? f.lastMoveY : f.aimY;
+          const kick = 210;
+          ball.vx += pushX*kick*dt*6;
+          ball.vy += pushY*kick*dt*6;
+          const overlap = (f.r+ball.r) - d || 1;
+          const nx = d>0 ? (ball.x-f.x)/d : 1, ny = d>0 ? (ball.y-f.y)/d : 0;
+          ball.x += nx*overlap*0.5; ball.y += ny*overlap*0.5;
+        }
+      }
+      if(myScore>=WIN_GOALS || foeScore>=WIN_GOALS) endMatch();
+    }
+
+    // knockout / online duel-style mode logic (both use "last one standing", no respawns)
+    if(mode==='knockout' || isOnlineMode()){
+      const aliveMe = allies.filter(f=>f.alive).length;
+      const aliveFoe = enemies.filter(f=>f.alive).length;
+      if(aliveFoe===0 || aliveMe===0) endMatch();
+    }
+
+    if(isOnlineMode() && netRole==='host' && netConn){
+      netStateAccum += dt;
+      if(netStateAccum > 0.05){
+        netStateAccum = 0;
+        sendNetState();
+      }
+    }
+
+    for(const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt; p.vx*=0.9; p.vy*=0.9; }
+    particles = particles.filter(p=>p.life>0);
+    for(const s of meleeSwings){ s.life -= dt; }
+    meleeSwings = meleeSwings.filter(s=>s.life>0);
+
+    document.getElementById('hpFill').style.width = Math.max(0,player.hp)+'%';
+    refreshScoreHUD();
+
+    const camTarget = spectatorTarget();
+    camera.x += (camTarget.x-camera.x)*0.12;
+    camera.y += (camTarget.y-camera.y)*0.12;
+  }
+
+  function refreshScoreHUD(){
+    const gemRow = document.getElementById('gemRow');
+    if(mode==='gem'){
+      gemRow.style.display='flex';
+      document.getElementById('gemNum').textContent = myScore;
+      document.getElementById('usScore').textContent = 'VOUS '+myScore;
+      document.getElementById('themScore').textContent = 'EUX '+foeScore;
+    } else if(mode==='ball'){
+      gemRow.style.display='none';
+      document.getElementById('usScore').textContent = 'VOUS '+myScore+' but'+(myScore>1?'s':'');
+      document.getElementById('themScore').textContent = 'EUX '+foeScore+' but'+(foeScore>1?'s':'');
+    } else if(isOnlineMode()){
+      gemRow.style.display='none';
+      const meAlive = player && player.alive;
+      const foeAlive = enemies[0] && enemies[0].alive;
+      const foeName = enemies[0] ? enemies[0].name : 'ADVERSAIRE';
+      const scoreSuffix = mode==='tournament' ? (' ('+tournamentWins.me+')') : '';
+      const foeScoreSuffix = mode==='tournament' ? (' ('+tournamentWins.foe+')') : '';
+      document.getElementById('usScore').textContent = 'VOUS ' + (meAlive ? '❤' : '☠') + scoreSuffix;
+      document.getElementById('themScore').textContent = foeName + ' ' + (foeAlive ? '❤' : '☠') + foeScoreSuffix;
+    } else {
+      gemRow.style.display='none';
+      const aliveMe = allies.filter(f=>f.alive).length;
+      const aliveFoe = enemies.filter(f=>f.alive).length;
+      document.getElementById('usScore').textContent = 'VOUS '+aliveMe+' en vie';
+      document.getElementById('themScore').textContent = 'EUX '+aliveFoe+' en vie';
+    }
+  }
+
+  function endMatch(){
+    matchOver = true; running = false;
+    const title = document.getElementById('resultTitle');
+    const sub = document.getElementById('resultSub');
+    const retryBtnEl = document.getElementById('retryBtn');
+    let roundWinner = null; // 'me' | 'foe' | null (draw)
+
+    if(mode==='knockout' || isOnlineMode()){
+      const single = isOnlineMode();
+      const aliveMe = allies.filter(f=>f.alive).length, aliveFoe = enemies.filter(f=>f.alive).length;
+      if(aliveMe>aliveFoe){ title.textContent='VICTOIRE'; title.style.color='#3ddc84'; sub.textContent = single ? "Tu as éliminé ton adversaire." : "Vous avez éliminé l'équipe adverse."; roundWinner='me'; }
+      else if(aliveFoe>aliveMe){ title.textContent='DÉFAITE'; title.style.color='#ff5566'; sub.textContent = single ? "Tu as été éliminé." : "Votre équipe a été éliminée."; roundWinner='foe'; }
+      else { title.textContent='ÉGALITÉ'; title.style.color='#ffcc00'; sub.textContent = single ? "Match nul, temps écoulé." : "Aucune équipe n'a survécu."; }
+    } else {
+      if(myScore>foeScore){ title.textContent='VICTOIRE'; title.style.color='#3ddc84'; sub.textContent = mode==='ball' ? 'Vous avez marqué le plus de buts.' : 'Votre équipe a récolté plus de gemmes.'; roundWinner='me'; }
+      else if(foeScore>myScore){ title.textContent='DÉFAITE'; title.style.color='#ff5566'; sub.textContent = mode==='ball' ? "L'équipe adverse a marqué plus de buts." : "L'équipe adverse a pris l'avantage."; roundWinner='foe'; }
+      else { title.textContent='ÉGALITÉ'; title.style.color='#ffcc00'; sub.textContent = "Un match serré jusqu'au bout."; }
+    }
+
+    if(mode==='tournament'){
+      if(roundWinner==='me') tournamentWins.me++;
+      else if(roundWinner==='foe') tournamentWins.foe++;
+
+      const scoreLine = 'Score du tournoi : Toi ' + tournamentWins.me + ' — ' + tournamentWins.foe + ' Adversaire';
+      if(tournamentWins.me >= TOURNAMENT_TARGET || tournamentWins.foe >= TOURNAMENT_TARGET){
+        tournamentConcluded = true;
+        const wonIt = tournamentWins.me > tournamentWins.foe;
+        title.textContent = wonIt ? 'TOURNOI REMPORTÉ 🏆' : 'TOURNOI PERDU';
+        title.style.color = wonIt ? '#3ddc84' : '#ff5566';
+        retryBtnEl.textContent = 'NOUVEAU TOURNOI';
+      } else {
+        tournamentConcluded = false;
+        retryBtnEl.textContent = 'MANCHE SUIVANTE';
+      }
+      sub.innerHTML = sub.textContent + '<br><span style="color:var(--accent)">' + scoreLine + '</span>';
+    } else {
+      retryBtnEl.textContent = 'REJOUER';
+    }
+
+    applyMatchPoints(roundWinner, sub);
+
+    document.getElementById('results').classList.remove('hidden');
+  }
+
+  // ================= POINTS SYSTEM =================
+  const POINTS_WIN = 10;
+  const POINTS_LOSS = -2;
+
+  function applyMatchPoints(roundWinner, subEl){
+    if(roundWinner!=='me' && roundWinner!=='foe') return; // no change on a draw
+    const delta = roundWinner==='me' ? POINTS_WIN : POINTS_LOSS;
+    const beforeTotal = totalPointsEarned;
+
+    profilePoints = Math.max(0, profilePoints + delta);
+    if(delta>0) totalPointsEarned += delta; // lifetime total only grows, so a reward can't be taken back by a later loss
+    const cid = selectedCharId;
+    characterPoints[cid] = Math.max(0, (characterPoints[cid]||0) + delta);
+    saveProfileExtras();
+    updateProfileBarPoints();
+
+    if(subEl){
+      const sign = delta>0 ? '+' : '';
+      const color = delta>0 ? '#3ddc84' : '#ff5566';
+      subEl.innerHTML = subEl.innerHTML + '<br><span style="color:' + color + ';font-weight:900;">' + sign + delta + ' points</span>';
+
+      const newlyUnlocked = buildMilestones().filter(m=>m.threshold>beforeTotal && m.threshold<=totalPointsEarned);
+      newlyUnlocked.forEach(m=>{
+        if(m.type==='character'){
+          const c = getChar(m.charId);
+          subEl.innerHTML += '<br><span style="color:var(--accent);font-weight:900;">🔓 Personnage débloqué : ' + c.name + ' !</span>';
+        } else {
+          subEl.innerHTML += '<br><span style="color:' + RARITY_COLOR[m.rarity] + ';font-weight:900;">🏆 Rareté débloquée : skins ' + RARITY_LABEL[m.rarity] + ' pour tous les personnages !</span>';
+        }
+      });
+    }
+  }
+
+  function updateProfileBarPoints(){
+    const el = document.getElementById('profileBarPoints');
+    if(el) el.textContent = profilePoints + ' pts';
+  }
+
+  // ================= RENDER =================
+  function worldToScreen(x,y){ return { x: W/2+(x-camera.x), y: H/2+(y-camera.y) }; }
+
+  function roundedRectPath(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.lineTo(x+w-r,y);
+    ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w,y+h-r);
+    ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r,y+h);
+    ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x,y+r);
+    ctx.arcTo(x,y,x+r,y,r);
+    ctx.closePath();
+  }
+
+  function drawGrass(){
+    const origin = worldToScreen(0,0);
+    ctx.fillStyle = '#2f5a38';
+    roundedRectPath(origin.x, origin.y, ARENA.w, ARENA.h, CORNER_R);
+    ctx.fill();
+    ctx.save();
+    roundedRectPath(origin.x, origin.y, ARENA.w, ARENA.h, CORNER_R);
+    ctx.clip();
+    const stripeW = 80;
+    for(let i=0;i*stripeW<ARENA.w+stripeW;i++){
+      if(i%2===0){
+        const s = worldToScreen(i*stripeW,0);
+        ctx.fillStyle = 'rgba(255,255,255,0.035)';
+        ctx.fillRect(s.x, origin.y, stripeW, ARENA.h);
+      }
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 2;
+    for(const t of grassTufts){
+      const s = worldToScreen(t.x,t.y);
+      if(s.x<-10||s.x>W+10||s.y<-10||s.y>H+10) continue;
+      ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(t.a);
+      ctx.strokeStyle = 'rgba(20,50,25,0.5)';
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(t.s*0.4,-t.s*1.6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-t.s*0.4,-t.s*1.4); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // center line
+    const c1=worldToScreen(ARENA.w/2,0), c2=worldToScreen(ARENA.w/2,ARENA.h);
+    ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=3; ctx.setLineDash([12,12]);
+    ctx.beginPath(); ctx.moveTo(c1.x,c1.y); ctx.lineTo(c2.x,c2.y); ctx.stroke(); ctx.setLineDash([]);
+
+    // arena border (rounded corners so the ball can't get trapped)
+    ctx.strokeStyle='#1c3320'; ctx.lineWidth=8;
+    roundedRectPath(origin.x,origin.y,ARENA.w,ARENA.h,CORNER_R);
+    ctx.stroke();
+
+    if(mode==='ball'){
+      // goal bands
+      const gy1 = worldToScreen(0, ARENA.h/2-GOAL_HALF), gy2 = worldToScreen(0, ARENA.h/2+GOAL_HALF);
+      ctx.fillStyle='rgba(255,85,102,0.18)';
+      const lg = worldToScreen(0, ARENA.h/2-GOAL_HALF);
+      ctx.fillRect(lg.x-6, lg.y, 10, GOAL_HALF*2);
+      const rg = worldToScreen(ARENA.w, ARENA.h/2-GOAL_HALF);
+      ctx.fillStyle='rgba(61,220,132,0.18)';
+      ctx.fillRect(rg.x-4, rg.y, 10, GOAL_HALF*2);
+    }
+  }
+
+  function drawRock(o){
+    const s = worldToScreen(o.x,o.y);
+    if(s.x+o.w<0||s.x>W||s.y+o.h<0||s.y>H) return;
+    ctx.save();
+    // shadow
+    ctx.fillStyle='rgba(0,0,0,0.25)';
+    ctx.fillRect(s.x+4, s.y+o.h, o.w, 7);
+    // base block
+    ctx.fillStyle='#5c6a72';
+    ctx.fillRect(s.x, s.y, o.w, o.h);
+    // top bevel highlight
+    ctx.fillStyle='rgba(255,255,255,0.12)';
+    ctx.fillRect(s.x, s.y, o.w, Math.max(4, o.h*0.2));
+    // bottom bevel shading
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    ctx.fillRect(s.x, s.y+o.h*0.8, o.w, Math.max(4, o.h*0.2));
+    // crack texture
+    ctx.strokeStyle='rgba(0,0,0,0.22)'; ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(s.x+o.w*0.32, s.y+o.h*0.08);
+    ctx.lineTo(s.x+o.w*0.44, s.y+o.h*0.5);
+    ctx.lineTo(s.x+o.w*0.28, s.y+o.h*0.92);
+    ctx.stroke();
+    // square outline
+    ctx.strokeStyle='#2c363c'; ctx.lineWidth=3;
+    ctx.strokeRect(s.x, s.y, o.w, o.h);
+    ctx.restore();
+  }
+
+  function drawFighter(f){
+    if(!f.alive) return;
+    const s = worldToScreen(f.x,f.y);
+    if(s.x<-40||s.x>W+40||s.y<-40||s.y>H+40) return;
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y+f.r*0.7, f.r*0.9, f.r*0.35, 0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fill();
+
+    const ang = Math.atan2(f.aimY,f.aimX);
+    ctx.save();
+    ctx.translate(s.x,s.y);
+    drawShape(ctx, f.charDef.shape, f.r, f.colorMain, f.colorAccent, ang);
+    ctx.restore();
+
+    if(f.isPlayer){
+      ctx.beginPath(); ctx.arc(s.x,s.y,f.r+4,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=2; ctx.stroke();
+    }
+
+    ctx.font='700 11px Segoe UI'; ctx.fillStyle='#fff'; ctx.textAlign='center';
+    ctx.fillText(f.name, s.x, s.y-f.r-16);
+    const hpw=34;
+    ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fillRect(s.x-hpw/2, s.y-f.r-12, hpw, 4);
+    ctx.fillStyle = f.hp>40 ? '#3ddc84' : '#ff5566';
+    ctx.fillRect(s.x-hpw/2, s.y-f.r-12, hpw*(f.hp/f.maxHp), 4);
+  }
+
+  function drawBall(){
+    const s = worldToScreen(ball.x, ball.y);
+    ctx.beginPath(); ctx.ellipse(s.x, s.y+ball.r*0.8, ball.r*0.9, ball.r*0.3, 0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x,s.y,ball.r,0,Math.PI*2);
+    ctx.fillStyle='#f4f4f4'; ctx.fill();
+    ctx.strokeStyle='#333'; ctx.lineWidth=2; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(s.x-6,s.y-2); ctx.lineTo(s.x,s.y-8); ctx.lineTo(s.x+6,s.y-2); ctx.closePath();
+    ctx.fillStyle='#333'; ctx.fill();
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    drawGrass();
+    for(const o of obstacles) drawRock(o);
+    if(mode==='gem'){
+      for(const g of gems){
+        const s = worldToScreen(g.x,g.y); const bob=Math.sin(g.bob)*4;
+        ctx.save(); ctx.translate(s.x,s.y+bob); ctx.rotate(Math.PI/4);
+        ctx.fillStyle='#3ddc84'; ctx.shadowColor='#3ddc84'; ctx.shadowBlur=12;
+        ctx.fillRect(-8,-8,16,16); ctx.restore();
+      }
+    }
+    if(mode==='ball') drawBall();
+    if(player && player.alive && fireActive){
+      const s = worldToScreen(player.x, player.y);
+      const ex = s.x + player.aimX*150, ey = s.y + player.aimY*150;
+      ctx.save();
+      ctx.setLineDash([6,7]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(s.x + player.aimX*player.r*1.5, s.y + player.aimY*player.r*1.5); ctx.lineTo(ex,ey); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    for(const b of bullets){
+      const s = worldToScreen(b.x,b.y);
+      ctx.beginPath(); ctx.arc(s.x,s.y,b.r,0,Math.PI*2);
+      ctx.fillStyle=b.color; ctx.shadowColor=b.color; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+    }
+    for(const sw of meleeSwings){
+      const s = worldToScreen(sw.x,sw.y);
+      ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(sw.angle);
+      ctx.globalAlpha = Math.max(0,sw.life/0.18)*0.6;
+      ctx.beginPath(); ctx.arc(0,0,sw.range,-sw.arc/2,sw.arc/2); ctx.strokeStyle=sw.color; ctx.lineWidth=8; ctx.stroke();
+      ctx.globalAlpha=1; ctx.restore();
+    }
+    for(const f of [...allies, ...enemies]) drawFighter(f);
+    for(const p of particles){
+      const s = worldToScreen(p.x,p.y);
+      ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color;
+      ctx.beginPath(); ctx.arc(s.x,s.y,3,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+    }
+  }
+
+  // ================= ERROR DIAGNOSTICS =================
+  // Surfaces JS errors on-screen instead of failing silently, so a bug like
+  // "empty arena, nothing happens" comes with an actual message to relay back.
+  let lastReportedError = '';
+  function reportError(context, err){
+    const msg = context + ': ' + (err && err.message ? err.message : String(err));
+    console.error(msg, err);
+    if(msg === lastReportedError) return; // avoid spamming the same error every frame
+    lastReportedError = msg;
+    const banner = document.getElementById('debugBanner');
+    if(!banner) return;
+    document.getElementById('debugBannerText').textContent = msg;
+    banner.classList.remove('hidden');
+  }
+  function initDebugBanner(){
+    const closeBtn = document.getElementById('debugCloseBtn');
+    const copyBtn = document.getElementById('debugCopyBtn');
+    if(closeBtn) closeBtn.addEventListener('click', ()=>{ document.getElementById('debugBanner').classList.add('hidden'); });
+    if(copyBtn) copyBtn.addEventListener('click', ()=>{
+      const text = document.getElementById('debugBannerText').textContent;
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(()=>{ copyBtn.textContent='COPIÉ !'; setTimeout(()=>copyBtn.textContent='COPIER',1500); }).catch(()=>{});
+      }
+    });
+  }
+  initDebugBanner();
+
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(0.033, (now-last)/1000);
+    last = now;
+    try{
+      update(dt);
+      render();
+    }catch(err){
+      reportError('Boucle de jeu', err);
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ================= ONLINE DUEL: NETWORKING =================
+  const ROOM_PREFIX = 'arenaclash-';
+  const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L, avoids look-alike mistakes
+
+  // Serveurs ICE : STUN (découverte d'adresse) + TURN (relais gratuit Open Relay).
+  // Le TURN sert de secours quand la connexion directe est impossible
+  // (typiquement un joueur en WiFi et l'autre en 4G/5G derrière un NAT opérateur).
+  const PEER_OPTS = {
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'turn:openrelay.metered.ca:80',  username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+      ]
+    }
+  };
+
+  // Traduit un code d'erreur PeerJS en explication lisible, pour savoir
+  // précisément pourquoi la création/connexion échoue.
+  function peerErrorLabel(err){
+    const t = err && err.type;
+    switch(t){
+      case 'network': return 'service de mise en relation injoignable — réseau ou pare-feu';
+      case 'server-error': return 'service de mise en relation indisponible, réessaie dans un instant';
+      case 'unavailable-id': return 'code déjà pris, clique à nouveau pour en générer un autre';
+      case 'peer-unavailable': return 'aucune partie avec ce code';
+      case 'browser-incompatible': return 'navigateur incompatible avec le jeu en ligne';
+      case 'disconnected': return 'déconnecté du service de mise en relation';
+      case 'webrtc': return 'erreur WebRTC';
+      default: return t ? ('erreur : ' + t) : 'erreur inconnue';
+    }
+  }
+
+  function genRoomCode(){
+    let s = '';
+    for(let i=0;i<5;i++) s += CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];
+    return s;
+  }
+
+  function netCleanup(){
+    if(netConn){ try{ netConn.close(); }catch(e){} }
+    if(netPeer){ try{ netPeer.destroy(); }catch(e){} }
+    netConn = null; netPeer = null; netRole = null; netOpponentMeta = null;
+    latestRemoteInput = { mx:0, my:0, aimX:1, aimY:0, firing:false };
+  }
+
+  function peerLibMissing(){
+    return typeof Peer === 'undefined';
+  }
+
+  function hostGame(){
+    const createStatus = document.getElementById('createStatus');
+    const roomCodeBox = document.getElementById('roomCodeBox');
+    roomCodeBox.classList.add('hidden');
+    createStatus.textContent = 'Génération du code…';
+    createStatus.style.color = '';
+
+    if(peerLibMissing()){
+      createStatus.textContent = "Le mode en ligne nécessite une connexion Internet (bibliothèque indisponible).";
+      createStatus.style.color = 'var(--accent2)';
+      return;
+    }
+
+    netCleanup();
+    const code = genRoomCode();
+    const peer = new Peer(ROOM_PREFIX + code.toLowerCase(), PEER_OPTS);
+    netPeer = peer;
+    let opened = false;
+
+    peer.on('open', ()=>{
+      opened = true;
+      document.getElementById('roomCodeValue').textContent = code;
+      roomCodeBox.classList.remove('hidden');
+      createStatus.textContent = '';
+    });
+    peer.on('connection', (conn)=>{
+      // La connexion n'est pas encore ouverte quand cet événement se déclenche :
+      // il faut attendre 'open' avant d'envoyer quoi que ce soit, sinon le
+      // message 'meta' du créateur se perd et l'autre joueur reste bloqué.
+      conn.on('open', ()=> setupConnection(conn, 'host'));
+    });
+    peer.on('error', (err)=>{
+      console.error('PeerJS host error', err);
+      createStatus.textContent = "Impossible de créer la partie (" + peerErrorLabel(err) + ").";
+      createStatus.style.color = 'var(--accent2)';
+    });
+    setTimeout(()=>{
+      if(!opened){
+        createStatus.textContent = "Connexion au service en ligne impossible. Vérifie ta connexion Internet (ou réessaie depuis le site une fois hébergé).";
+        createStatus.style.color = 'var(--accent2)';
+      }
+    }, 10000);
+  }
+
+  function joinGame(code){
+    const joinStatus = document.getElementById('joinStatus');
+    joinStatus.style.color = '';
+    joinStatus.textContent = 'Connexion en cours…';
+
+    if(peerLibMissing()){
+      joinStatus.textContent = "Le mode en ligne nécessite une connexion Internet (bibliothèque indisponible).";
+      joinStatus.style.color = 'var(--accent2)';
+      return;
+    }
+    if(!code || code.length < 3){
+      joinStatus.textContent = 'Entre un code valide.';
+      joinStatus.style.color = 'var(--accent2)';
+      return;
+    }
+
+    netCleanup();
+    const peer = new Peer(PEER_OPTS);
+    netPeer = peer;
+
+    peer.on('open', ()=>{
+      const conn = peer.connect(ROOM_PREFIX + code.toLowerCase(), { reliable: true });
+      let settled = false;
+      conn.on('open', ()=>{ settled = true; setupConnection(conn, 'joiner'); });
+      conn.on('error', ()=>{});
+      setTimeout(()=>{
+        if(!settled){
+          joinStatus.textContent = "Aucune partie trouvée avec ce code.";
+          joinStatus.style.color = 'var(--accent2)';
+        }
+      }, 8000);
+    });
+    peer.on('error', (err)=>{
+      console.error('PeerJS join error', err);
+      joinStatus.textContent = "Connexion impossible (" + peerErrorLabel(err) + ").";
+      joinStatus.style.color = 'var(--accent2)';
+    });
+  }
+
+  function setupConnection(conn, role){
+    netConn = conn; netRole = role;
+    conn.on('data', handleNetData);
+    conn.on('close', handleNetDisconnect);
+    conn.on('error', handleNetDisconnect);
+    // exchange chosen character/skin so both sides can build the right opponent fighter
+    conn.send({ type:'meta', charId: selectedCharId, skinIdx: selectedSkinIdx, avatarId: selectedAvatarId, name: currentPseudo });
+    const statusEl = document.getElementById(role==='host' ? 'createStatus' : 'joinStatus');
+    if(statusEl) statusEl.textContent = 'Adversaire connecté ! Lancement du duel…';
+    tryStartDuel();
+  }
+
+  function tryStartDuel(){
+    if(!netConn || !netOpponentMeta) return; // wait until both connection and meta are ready
+    enterSalon();
+  }
+
+  function handleNetData(msg){
+    if(!msg || !msg.type) return;
+    if(msg.type === 'meta'){
+      netOpponentMeta = { charId: msg.charId, skinIdx: msg.skinIdx, avatarId: msg.avatarId, name: msg.name || 'Adversaire' };
+      tryStartDuel();
+    } else if(msg.type === 'input'){
+      if(netRole === 'host') latestRemoteInput = { mx: msg.mx, my: msg.my, aimX: msg.aimX, aimY: msg.aimY, firing: !!msg.firing };
+    } else if(msg.type === 'state'){
+      if(netRole === 'joiner') applyRemoteState(msg);
+    } else if(msg.type === 'ready'){
+      netReadyRemote = true;
+      updateSalonReadyUI();
+    } else if(msg.type === 'rematch'){
+      document.getElementById('results').classList.add('hidden');
+      safeStartGame();
+    } else if(msg.type === 'tournament_reset'){
+      tournamentWins = { me:0, foe:0 };
+      tournamentConcluded = false;
+      document.getElementById('results').classList.add('hidden');
+      safeStartGame();
+    }
+  }
+
+  function handleNetDisconnect(){
+    if(!isOnlineMode()) return;
+    const screenSalonEl = document.getElementById('screen-salon');
+    if(screenSalonEl && !screenSalonEl.classList.contains('hidden')){
+      screenSalonEl.classList.add('hidden');
+      document.getElementById('screen-online').classList.remove('hidden');
+      resetOnlineLobby();
+      document.getElementById('createStatus').textContent = "L'adversaire s'est déconnecté.";
+      document.getElementById('createStatus').style.color = 'var(--accent2)';
+      return;
+    }
+    if(!matchOver && running){
+      running = false;
+      const title = document.getElementById('resultTitle');
+      const sub = document.getElementById('resultSub');
+      title.textContent = 'CONNEXION PERDUE';
+      title.style.color = 'var(--accent2)';
+      sub.textContent = "L'adversaire s'est déconnecté.";
+      matchOver = true;
+      document.getElementById('results').classList.remove('hidden');
+    }
+  }
+
+  // Joiner → host: current input state. Called on every stick change plus a
+  // small heartbeat so the host always has a fresh value even if an event drops.
+  let lastInputSend = 0;
+  function sendNetInput(){
+    if(!(isOnlineMode() && netRole==='joiner' && netConn)) return;
+    const now = performance.now();
+    if(now - lastInputSend < 40) return; // ~25/sec cap
+    lastInputSend = now;
+    try{
+      netConn.send({ type:'input', mx: moveVec.x, my: moveVec.y, aimX: fireAim.x, aimY: fireAim.y, firing: !!fireActive });
+    }catch(e){}
+  }
+
+  // Host → joiner: authoritative snapshot of both fighters and visible bullets.
+  function sendNetState(){
+    if(!netConn || !player || !enemies[0]) return;
+    try{
+      netConn.send({
+        type: 'state',
+        host: { x:player.x, y:player.y, hp:player.hp, alive:player.alive, aimX:player.aimX, aimY:player.aimY },
+        guest: { x:enemies[0].x, y:enemies[0].y, hp:enemies[0].hp, alive:enemies[0].alive, aimX:enemies[0].aimX, aimY:enemies[0].aimY },
+        bullets: bullets.map(b=>({ x:Math.round(b.x), y:Math.round(b.y), r:b.r, color:b.color })),
+        timeLeft
+      });
+    }catch(e){}
+  }
+
+  // Joiner: mirror the host's authoritative snapshot into our local objects so
+  // the existing render/camera/HUD code works unmodified.
+  function applyRemoteState(msg){
+    if(!player || !enemies[0]) return;
+    Object.assign(player, { x:msg.guest.x, y:msg.guest.y, hp:msg.guest.hp, alive:msg.guest.alive, aimX:msg.guest.aimX, aimY:msg.guest.aimY });
+    Object.assign(enemies[0], { x:msg.host.x, y:msg.host.y, hp:msg.host.hp, alive:msg.host.alive, aimX:msg.host.aimX, aimY:msg.host.aimY });
+    bullets = (msg.bullets||[]).map(b=>({ x:b.x, y:b.y, r:b.r, color:b.color }));
+    if(typeof msg.timeLeft === 'number') timeLeft = msg.timeLeft;
+  }
+
+  // ================= LOCAL PROFILE (pseudo + points, no real auth) =================
+  // Multiple local profiles can coexist on the same device/browser, one per
+  // pseudo (case-insensitive key). There's still no real server-side account
+  // system — typing a pseudo just looks up (or creates) its local save.
+  const PROFILES_KEY = 'arenaClashProfiles';
+  const LAST_PSEUDO_KEY = 'arenaClashLastPseudo';
+  const OLD_SINGLE_PROFILE_KEY = 'arenaClashProfile'; // pre-multi-profile format
+
+  function pseudoKey(pseudo){ return pseudo.trim().toLowerCase(); }
+
+  function loadAllProfiles(){
+    try{
+      const raw = localStorage.getItem(PROFILES_KEY);
+      const dict = raw ? JSON.parse(raw) : {};
+      return (dict && typeof dict==='object') ? dict : {};
+    }catch(e){
+      return {};
+    }
+  }
+  function migrateOldSingleProfile(){
+    try{
+      const raw = localStorage.getItem(OLD_SINGLE_PROFILE_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(data && typeof data.pseudo === 'string' && data.pseudo.trim()){
+        const dict = loadAllProfiles();
+        const key = pseudoKey(data.pseudo);
+        if(!dict[key]){
+          dict[key] = {
+            pseudo: data.pseudo,
+            points: typeof data.points === 'number' ? data.points : 0,
+            charPoints: (data.charPoints && typeof data.charPoints === 'object') ? data.charPoints : {},
+            totalEarned: typeof data.totalEarned === 'number' ? data.totalEarned : 0,
+          };
+          localStorage.setItem(PROFILES_KEY, JSON.stringify(dict));
+          localStorage.setItem(LAST_PSEUDO_KEY, data.pseudo);
+        }
+      }
+      localStorage.removeItem(OLD_SINGLE_PROFILE_KEY);
+    }catch(e){ /* best effort only */ }
+  }
+  function loadProfileByPseudo(pseudo){
+    const dict = loadAllProfiles();
+    const entry = dict[pseudoKey(pseudo)];
+    if(!entry) return null;
+    return {
+      pseudo: entry.pseudo || pseudo,
+      points: typeof entry.points === 'number' ? entry.points : 0,
+      charPoints: (entry.charPoints && typeof entry.charPoints === 'object') ? entry.charPoints : {},
+      totalEarned: typeof entry.totalEarned === 'number' ? entry.totalEarned : 0,
+    };
+  }
+  function loadLastUsedProfile(){
+    try{
+      const last = localStorage.getItem(LAST_PSEUDO_KEY);
+      if(!last) return null;
+      return loadProfileByPseudo(last);
+    }catch(e){
+      return null;
+    }
+  }
+  function saveProfileData(){
+    try{
+      const dict = loadAllProfiles();
+      dict[pseudoKey(currentPseudo)] = { pseudo: currentPseudo, points: profilePoints, charPoints: characterPoints, totalEarned: totalPointsEarned };
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(dict));
+      localStorage.setItem(LAST_PSEUDO_KEY, currentPseudo);
+    }catch(e){ /* best effort only */ }
+  }
+  function saveProfileExtras(){ saveProfileData(); } // alias used by the points system
+  function clearStoredPseudo(){
+    try{ localStorage.removeItem(LAST_PSEUDO_KEY); }catch(e){} // keeps the saved profile itself, just stops auto-continuing as them
+  }
+
+  function showLoginScreen(){
+    migrateOldSingleProfile();
+    const stored = loadLastUsedProfile();
+    const createPanel = document.getElementById('loginCreatePanel');
+    const returnPanel = document.getElementById('loginReturnPanel');
+    if(stored){
+      currentPseudo = stored.pseudo;
+      profilePoints = stored.points;
+      characterPoints = stored.charPoints;
+      totalPointsEarned = stored.totalEarned;
+      document.getElementById('returnPseudoLabel').textContent = stored.pseudo;
+      createPanel.classList.add('hidden');
+      returnPanel.classList.remove('hidden');
+    } else {
+      profilePoints = 0;
+      characterPoints = {};
+      totalPointsEarned = 0;
+      createPanel.classList.remove('hidden');
+      returnPanel.classList.add('hidden');
+      document.getElementById('createPseudoInput').value = '';
+      document.getElementById('createProfileStatus').textContent = '';
+    }
+  }
+
+  function enterAppWithPseudo(pseudo){
+    currentPseudo = pseudo;
+    document.getElementById('screen-login').classList.add('hidden');
+    document.getElementById('screen-mode').classList.remove('hidden');
+    document.getElementById('profileBarName').textContent = pseudo;
+    styleAvatarEl(document.getElementById('profileBarAvatar'), getAvatar(selectedAvatarId));
+    updateProfileBarPoints();
+    renderHomePreview();
+    buildHomeModeIcons();
+  }
+
+  document.getElementById('createProfileBtn').addEventListener('click', ()=>{
+    const input = document.getElementById('createPseudoInput');
+    const status = document.getElementById('createProfileStatus');
+    const pseudo = input.value.trim();
+    if(!pseudo){
+      status.textContent = 'Entre un pseudo pour continuer.';
+      status.style.color = 'var(--accent2)';
+      return;
+    }
+    const existing = loadProfileByPseudo(pseudo);
+    if(existing){
+      currentPseudo = existing.pseudo;
+      profilePoints = existing.points;
+      characterPoints = existing.charPoints;
+      totalPointsEarned = existing.totalEarned;
+    } else {
+      profilePoints = 0;
+      characterPoints = {};
+      totalPointsEarned = 0;
+      currentPseudo = pseudo;
+    }
+    saveProfileData();
+    enterAppWithPseudo(currentPseudo);
+  });
+  document.getElementById('createPseudoInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') document.getElementById('createProfileBtn').click();
+  });
+  document.getElementById('loginBtn').addEventListener('click', ()=>{
+    enterAppWithPseudo(currentPseudo);
+  });
+  document.getElementById('resetProfileBtn').addEventListener('click', ()=>{
+    clearStoredPseudo();
+    showLoginScreen();
+  });
+  document.getElementById('profileBarSwitch').addEventListener('click', ()=>{
+    document.getElementById('screen-mode').classList.add('hidden');
+    document.getElementById('screen-login').classList.remove('hidden');
+    clearStoredPseudo();
+    showLoginScreen();
+  });
+
+  showLoginScreen();
+
+  // ================= SCREEN FLOW =================
+  const screenMode = document.getElementById('screen-mode');
+  const screenSize = document.getElementById('screen-teamsize');
+  const screenChar = document.getElementById('screen-character');
+  const screenOnline = document.getElementById('screen-online');
+  const screenSalon = document.getElementById('screen-salon');
+  const screenGame = document.getElementById('screen-game');
+  const screenRewards = document.getElementById('screen-rewards');
+  let pendingModeLabel = '';
+
+  function buildRewardsGrid(){
+    const grid = document.getElementById('rewardsGrid');
+    grid.innerHTML = '';
+    const milestones = buildMilestones();
+    let prevThreshold = 0;
+    milestones.forEach(m=>{
+      const done = totalPointsEarned >= m.threshold;
+      const card = document.createElement('div');
+      card.className = 'reward-card' + (done ? ' done' : '');
+
+      if(m.type==='character'){
+        const c = getChar(m.charId);
+        const commune = c.skins.find(s=>s.rarity==='commune');
+        const cv = document.createElement('canvas'); cv.width=56; cv.height=56;
+        const cctx = cv.getContext('2d');
+        cctx.save(); cctx.translate(28,28);
+        drawShape(cctx, c.shape, 19, commune.main, commune.accent, -Math.PI/2);
+        cctx.restore();
+        card.appendChild(cv);
+        const nm = document.createElement('div'); nm.className='reward-name'; nm.textContent = 'Personnage : '+c.name;
+        const thr = document.createElement('div'); thr.className='reward-threshold'; thr.textContent = m.threshold+' pts';
+        card.appendChild(thr); card.appendChild(nm);
+      } else {
+        const badge = document.createElement('div');
+        badge.style.fontSize = '32px'; badge.style.marginTop = '6px'; badge.textContent = '🏆';
+        badge.style.filter = done ? 'none' : 'grayscale(0.7)';
+        card.appendChild(badge);
+        const thr = document.createElement('div'); thr.className='reward-threshold'; thr.textContent = m.threshold+' pts';
+        const nm = document.createElement('div'); nm.className='reward-name'; nm.style.color = RARITY_COLOR[m.rarity];
+        nm.textContent = 'Skins ' + RARITY_LABEL[m.rarity] + ' (tous)';
+        card.appendChild(thr); card.appendChild(nm);
+      }
+
+      const barWrap = document.createElement('div'); barWrap.className='reward-progress-bar';
+      const fill = document.createElement('div'); fill.className='reward-progress-fill';
+      const span = Math.max(1, m.threshold-prevThreshold);
+      const pct = done ? 100 : Math.max(0, Math.min(100, ((totalPointsEarned-prevThreshold)/span)*100));
+      fill.style.width = pct+'%';
+      barWrap.appendChild(fill);
+      card.appendChild(barWrap);
+      const status = document.createElement('div');
+      status.className = 'reward-status ' + (done ? 'unlocked' : 'locked');
+      status.textContent = done ? '✅ Débloqué' : (Math.floor(totalPointsEarned)+' / '+m.threshold+' pts');
+      card.appendChild(status);
+      grid.appendChild(card);
+      prevThreshold = m.threshold;
+    });
+  }
+
+  document.getElementById('pointsBar').addEventListener('click', ()=>{
+    buildRewardsGrid();
+    screenMode.classList.add('hidden');
+    screenRewards.classList.remove('hidden');
+  });
+  document.getElementById('rewardsBackBtn').addEventListener('click', ()=>{
+    screenRewards.classList.add('hidden');
+    screenMode.classList.remove('hidden');
+  });
+
+  const MODE_META = [
+    { id:'gem', icon:'💎', label:'CHASSE AUX GEMMES' },
+    { id:'knockout', icon:'⚔️', label:'ÉLIMINATION' },
+    { id:'ball', icon:'⚽', label:'BALLON BRAWL' },
+    { id:'duel', icon:'🌐', label:'DUEL EN LIGNE' },
+    { id:'tournament', icon:'🏆', label:'TOURNOI EN LIGNE' },
+  ];
+
+  function buildHomeModeIcons(){
+    const wrap = document.getElementById('homeModeIcons');
+    wrap.innerHTML = '';
+    MODE_META.forEach(m=>{
+      const btn = document.createElement('div');
+      btn.className = 'mode-icon-btn' + (m.id===mode ? ' selected' : '');
+      btn.textContent = m.icon;
+      btn.addEventListener('click', ()=>{
+        mode = m.id;
+        pendingModeLabel = m.label;
+        document.getElementById('homeModeLabel').textContent = m.label;
+        buildHomeModeIcons();
+      });
+      wrap.appendChild(btn);
+    });
+    document.getElementById('homeModeLabel').textContent = (MODE_META.find(m=>m.id===mode) || MODE_META[0]).label;
+  }
+  mode = MODE_META[0].id;
+  pendingModeLabel = MODE_META[0].label;
+
+  document.querySelectorAll('#screen-teamsize .mode-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      teamSize = parseInt(card.dataset.teamsize, 10);
+      screenSize.classList.add('hidden');
+      screenGame.classList.remove('hidden');
+      document.getElementById('results').classList.add('hidden');
+      safeStartGame();
+    });
+  });
+
+  document.getElementById('backToModeFromSizeBtn').addEventListener('click', ()=>{
+    screenSize.classList.add('hidden');
+    screenMode.classList.remove('hidden');
+  });
+
+  function renderHomePreview(){
+    const c = getChar(selectedCharId);
+    const skin = c.skins[selectedSkinIdx] || c.skins[0];
+    const cv = document.getElementById('homeCharCanvas').getContext('2d');
+    cv.clearRect(0,0,200,200);
+    cv.save(); cv.translate(100,100);
+    drawShape(cv, c.shape, 62, skin.main, skin.accent, -Math.PI/2);
+    cv.restore();
+    document.getElementById('homeCharName').textContent = c.name;
+    document.getElementById('homeCharPoints').textContent = (characterPoints[c.id]||0) + ' pts';
+    styleAvatarEl(document.getElementById('homeCharAvatar'), getAvatar(selectedAvatarId));
+  }
+
+  document.getElementById('homeCharPreview').addEventListener('click', ()=>{
+    buildCharGrid();
+    screenMode.classList.add('hidden');
+    screenChar.classList.remove('hidden');
+  });
+
+  document.getElementById('homePlayBtn').addEventListener('click', ()=>{
+    if(mode === 'gem'){
+      teamSize = 3;
+      screenMode.classList.add('hidden');
+      screenGame.classList.remove('hidden');
+      document.getElementById('results').classList.add('hidden');
+      safeStartGame();
+    } else if(isOnlineMode()){
+      teamSize = 1;
+      tournamentWins = { me:0, foe:0 };
+      tournamentConcluded = false;
+      document.getElementById('onlineTitle').textContent = mode==='tournament' ? 'TOURNOI EN LIGNE' : 'DUEL EN LIGNE';
+      resetOnlineLobby();
+      screenMode.classList.add('hidden');
+      screenOnline.classList.remove('hidden');
+    } else {
+      document.getElementById('teamsizeTitle').textContent = pendingModeLabel;
+      screenMode.classList.add('hidden');
+      screenSize.classList.remove('hidden');
+    }
+  });
+
+  function buildCharGrid(){
+    const grid = document.getElementById('charGrid');
+    grid.innerHTML = '';
+    CHARACTERS.forEach(c=>{
+      const unlocked = isCharUnlocked(c.id);
+      const card = document.createElement('div');
+      card.className = 'char-card' + (c.id===selectedCharId ? ' selected' : '') + (!unlocked ? ' locked' : '');
+      card.dataset.id = c.id;
+      const cv = document.createElement('canvas');
+      cv.width = 64; cv.height = 64;
+      const cctx = cv.getContext('2d');
+      cctx.save(); cctx.translate(32,32);
+      const skin = c.skins.find(s=>s.rarity==='commune') || c.skins[0];
+      drawShape(cctx, c.shape, 22, skin.main, skin.accent, -Math.PI/2);
+      cctx.restore();
+      const nm = document.createElement('div'); nm.className='cname'; nm.textContent=c.name;
+      const at = document.createElement('div'); at.className='cattack'; at.textContent=c.attackLabel;
+      const pts = document.createElement('div'); pts.className='cpoints'; pts.textContent=(characterPoints[c.id]||0)+' pts';
+      card.appendChild(cv); card.appendChild(nm); card.appendChild(at); card.appendChild(pts);
+      if(!unlocked){
+        const lock = document.createElement('div'); lock.className='slock';
+        lock.textContent = '🔒 ' + charUnlockThreshold(c.id) + ' pts cumulés';
+        card.appendChild(lock);
+      }
+      card.addEventListener('click', ()=>{
+        if(!unlocked) return;
+        selectedCharId=c.id; selectedSkinIdx=0; buildCharGrid(); buildSkinRow();
+      });
+      grid.appendChild(card);
+    });
+    buildSkinRow();
+    buildAvatarGrid();
+  }
+
+  function buildSkinRow(){
+    const c = getChar(selectedCharId);
+    document.getElementById('skinTitle').textContent = 'SKINS — ' + c.name.toUpperCase();
+    const row = document.getElementById('skinRow');
+    row.innerHTML = '';
+    c.skins.forEach((skin, idx)=>{
+      const unlocked = isSkinUnlocked(c.id, skin);
+      const card = document.createElement('div');
+      card.className = 'skin-card' + (idx===selectedSkinIdx ? ' selected' : '') + (skin.legendary ? ' legendary' : '') + (skin.mythic ? ' mythic' : '') + (!unlocked ? ' locked' : '');
+      const cv = document.createElement('canvas'); cv.width=56; cv.height=56;
+      const cctx = cv.getContext('2d');
+      cctx.save(); cctx.translate(28,28);
+      drawShape(cctx, c.shape, 19, skin.main, skin.accent, -Math.PI/2);
+      cctx.restore();
+      const nm = document.createElement('div'); nm.className='sname'; nm.textContent=skin.name;
+      card.appendChild(cv); card.appendChild(nm);
+      if(skin.rarity && skin.rarity!=='commune'){
+        const tag = document.createElement('div'); tag.className='slegend';
+        tag.style.color = RARITY_COLOR[skin.rarity];
+        tag.textContent = (skin.mythic?'💠 ':skin.legendary?'🏆 ':'') + RARITY_LABEL[skin.rarity].toUpperCase();
+        card.appendChild(tag);
+      }
+      if(!unlocked){
+        const lock = document.createElement('div'); lock.className='slock';
+        lock.textContent = '🔒 ' + RARITY_THRESHOLD[skin.rarity] + ' pts cumulés';
+        card.appendChild(lock);
+      }
+      card.addEventListener('click', ()=>{
+        if(!unlocked) return;
+        selectedSkinIdx=idx; buildSkinRow();
+      });
+      row.appendChild(card);
+    });
+  }
+
+  function buildAvatarGrid(){
+    const grid = document.getElementById('avatarGrid');
+    grid.innerHTML = '';
+    AVATARS.forEach(a=>{
+      const swatch = document.createElement('div');
+      swatch.className = 'avatar-swatch' + (a.id===selectedAvatarId ? ' selected' : '');
+      styleAvatarEl(swatch, a);
+      swatch.addEventListener('click', ()=>{
+        selectedAvatarId = a.id;
+        buildAvatarGrid();
+        const bar = document.getElementById('profileBarAvatar');
+        if(bar) styleAvatarEl(bar, getAvatar(selectedAvatarId));
+      });
+      grid.appendChild(swatch);
+    });
+  }
+
+  document.getElementById('backToModeBtn').addEventListener('click', ()=>{
+    screenChar.classList.add('hidden');
+    screenMode.classList.remove('hidden');
+    renderHomePreview();
+  });
+  document.getElementById('playBtn').addEventListener('click', ()=>{
+    screenChar.classList.add('hidden');
+    screenMode.classList.remove('hidden');
+    renderHomePreview();
+  });
+  document.getElementById('retryBtn').addEventListener('click', ()=>{
+    document.getElementById('results').classList.add('hidden');
+    if(isOnlineMode() && netConn){
+      if(mode==='tournament' && tournamentConcluded){
+        tournamentWins = { me:0, foe:0 };
+        tournamentConcluded = false;
+        try{ netConn.send({ type:'tournament_reset' }); }catch(e){}
+      } else {
+        try{ netConn.send({ type:'rematch' }); }catch(e){}
+      }
+    }
+    safeStartGame();
+  });
+  document.getElementById('changeModeBtn').addEventListener('click', ()=>{
+    document.getElementById('results').classList.add('hidden');
+    screenGame.classList.add('hidden');
+    if(isOnlineMode()) netCleanup();
+    screenMode.classList.remove('hidden');
+    renderHomePreview();
+  });
+  document.getElementById('spectatePrev').addEventListener('click', ()=>{ spectateIdx--; });
+  document.getElementById('spectateNext').addEventListener('click', ()=>{ spectateIdx++; });
+
+  // ---- Online lobby wiring ----
+  function resetOnlineLobby(){
+    netCleanup();
+    document.getElementById('onlineChoice').classList.remove('hidden');
+    document.getElementById('onlineCreatePanel').classList.add('hidden');
+    document.getElementById('onlineJoinPanel').classList.add('hidden');
+    document.getElementById('roomCodeBox').classList.add('hidden');
+    document.getElementById('createStatus').textContent = '';
+    document.getElementById('joinStatus').textContent = '';
+    document.getElementById('joinCodeInput').value = '';
+  }
+  document.getElementById('onlineCreateCard').addEventListener('click', ()=>{
+    document.getElementById('onlineChoice').classList.add('hidden');
+    document.getElementById('onlineCreatePanel').classList.remove('hidden');
+    hostGame();
+  });
+  document.getElementById('onlineJoinCard').addEventListener('click', ()=>{
+    document.getElementById('onlineChoice').classList.add('hidden');
+    document.getElementById('onlineJoinPanel').classList.remove('hidden');
+  });
+  document.getElementById('joinConfirmBtn').addEventListener('click', ()=>{
+    const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+    joinGame(code);
+  });
+  document.getElementById('joinCodeInput').addEventListener('input', (e)=>{
+    e.target.value = e.target.value.toUpperCase();
+  });
+  document.getElementById('copyCodeBtn').addEventListener('click', ()=>{
+    const code = document.getElementById('roomCodeValue').textContent;
+    const btn = document.getElementById('copyCodeBtn');
+    const restore = ()=>{ btn.textContent = 'COPIER LE CODE'; };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(()=>{ btn.textContent = 'COPIÉ !'; setTimeout(restore, 1500); }).catch(()=>{});
+    }
+  });
+  document.getElementById('onlineBackBtn').addEventListener('click', ()=>{
+    netCleanup();
+    screenOnline.classList.add('hidden');
+    screenChar.classList.remove('hidden');
+  });
+
+  // ---- Salon (ready-up room) wiring ----
+  function enterSalon(){
+    netReadyLocal = false;
+    netReadyRemote = false;
+    screenOnline.classList.add('hidden');
+    screenSalon.classList.remove('hidden');
+    document.getElementById('results').classList.add('hidden');
+
+    const myChar = getChar(selectedCharId);
+    const mySkin = myChar.skins[selectedSkinIdx] || myChar.skins[0];
+    const meCv = document.getElementById('salonMeCanvas').getContext('2d');
+    meCv.clearRect(0,0,84,84);
+    meCv.save(); meCv.translate(42,42);
+    drawShape(meCv, myChar.shape, 28, mySkin.main, mySkin.accent, -Math.PI/2);
+    meCv.restore();
+    styleAvatarEl(document.getElementById('salonMeAvatar'), getAvatar(selectedAvatarId));
+
+    const oppChar = (netOpponentMeta && getChar(netOpponentMeta.charId)) || CHARACTERS[0];
+    const oppSkin = oppChar.skins[(netOpponentMeta && netOpponentMeta.skinIdx) || 0] || oppChar.skins[0];
+    const foeCv = document.getElementById('salonFoeCanvas').getContext('2d');
+    foeCv.clearRect(0,0,84,84);
+    foeCv.save(); foeCv.translate(42,42);
+    drawShape(foeCv, oppChar.shape, 28, oppSkin.main, oppSkin.accent, -Math.PI/2);
+    foeCv.restore();
+    document.getElementById('salonFoeName').textContent = (netOpponentMeta && netOpponentMeta.name) ? netOpponentMeta.name.toUpperCase() : 'ADVERSAIRE';
+    styleAvatarEl(document.getElementById('salonFoeAvatar'), getAvatar(netOpponentMeta && netOpponentMeta.avatarId));
+
+    const scoreLine = document.getElementById('salonScoreLine');
+    if(mode==='tournament'){
+      scoreLine.classList.remove('hidden');
+      scoreLine.textContent = 'Tournoi — score actuel : ' + tournamentWins.me + ' — ' + tournamentWins.foe;
+    } else {
+      scoreLine.classList.add('hidden');
+    }
+
+    const readyBtn = document.getElementById('salonReadyBtn');
+    readyBtn.disabled = false;
+    readyBtn.textContent = 'PRÊT !';
+    updateSalonReadyUI();
+  }
+
+  function updateSalonReadyUI(){
+    const meEl = document.getElementById('salonMeReady');
+    const foeEl = document.getElementById('salonFoeReady');
+    meEl.textContent = netReadyLocal ? 'Prêt ✓' : 'En attente…';
+    meEl.classList.toggle('is-ready', netReadyLocal);
+    foeEl.textContent = netReadyRemote ? 'Prêt ✓' : 'En attente…';
+    foeEl.classList.toggle('is-ready', netReadyRemote);
+    if(netReadyLocal && netReadyRemote){
+      setTimeout(()=>{ if(netReadyLocal && netReadyRemote) startMatchFromSalon(); }, 400);
+    }
+  }
+
+  function startMatchFromSalon(){
+    screenSalon.classList.add('hidden');
+    screenGame.classList.remove('hidden');
+    document.getElementById('results').classList.add('hidden');
+    safeStartGame();
+  }
+
+  document.getElementById('salonReadyBtn').addEventListener('click', ()=>{
+    netReadyLocal = true;
+    document.getElementById('salonReadyBtn').disabled = true;
+    document.getElementById('salonReadyBtn').textContent = 'EN ATTENTE DE L\'ADVERSAIRE…';
+    if(netConn){ try{ netConn.send({ type:'ready' }); }catch(e){} }
+    updateSalonReadyUI();
+  });
+  document.getElementById('salonLeaveBtn').addEventListener('click', ()=>{
+    netCleanup();
+    screenSalon.classList.add('hidden');
+    screenChar.classList.remove('hidden');
+  });
+
+  // ================= ORIENTATION: enforce landscape =================
+  function checkOrientation(){
+    const portrait = window.innerHeight > window.innerWidth;
+    document.getElementById('rotateOverlay').classList.toggle('show', portrait);
+  }
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', checkOrientation);
+  checkOrientation();
+
+  // ================= PWA: SERVICE WORKER =================
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{ /* hors d'un contexte hébergé, on ignore */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
